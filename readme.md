@@ -1,358 +1,182 @@
 # CDP-CLIENT-TOOL
 
-为开发运行在安卓机linux系统上的数据抓取client端提供工具
+一个客户端程序，通过 Socket.IO 与 HTTP 接口与网关通信，用于控制浏览器、抓取数据等。适用于在安卓机 / Linux 上运行的数据抓取 Client。
+
+- **包名**：`cdp-client-tool`
+- **入口**：`Client`、`EVENTS`、类型 `ClientOptions` / `GatewayConfig` / `excuteFn`
+
+## 快速开始
+
+```bash
+# 安装依赖并构建
+pnpm install
+pnpm run build
+```
+
+**作为客户端连接网关：**
+
+```ts
+import { Client } from "cdp-client-tool";
+
+const client = new Client({
+  deviceName: "my-device",   // 网关侧展示的设备名
+  gateways: [
+    { name: "local", uri: "http://localhost:3000" },
+  ],
+});
+```
+
+**启动示例网关 + 资源浏览器：**
+
+```bash
+pnpm run start:express   # 启动 Express 网关
+# 浏览器打开 http://localhost:3000/browser
+pnpm run start:client   # 启动示例 Client 连接网关
+```
+
+---
 
 ## 设计
 
-1. 获取客户端状态
-提供一些函数获取客户端的状态，例如客户端是否存在脚本文件
+1. **客户端状态**：提供获取客户端状态的能力（如是否存在某脚本文件）。
+2. **下发 / 执行脚本**：可下发脚本字符串执行，或将脚本放在客户端 `local_scripts` 后通过事件执行。脚本在 Node 中以 **CommonJS** 形式运行，可使用 `require()` 引用其他 CJS 模块。
+3. **控制**：通过 Socket.IO 连接网关，提供统一的控制事件协议。
+4. **浏览器控制**：使用 puppeteer-core 通过 CDP 控制浏览器，封装常用流程。
 
-2. 下发/执行脚本
-可以直接下发符合mjs的字符串脚本，也可以将脚本存放至客户端再执行
-
-3. 控制
-使用 socket.io 链接网关控制，提供一套控制用的标准
-
-4. 安卓浏览器控制
-使用 puppeteer-core 通过 CDP 控制浏览器，提供一些常用代码流程
+---
 
 ## 环境搭建
 
 ### 通用
 
-1. 安装 git / nodejs  
-2. 安装 chrome浏览器
+1. 安装 Git、Node.js  
+2. 安装 Chrome 浏览器  
 
-### windows/macos
+### Windows / macOS
 
-1. 使用启动项--remote-debugging-port=9222 --user-data-dir chrome 启动 浏览器,macos 使用```open -n -a "Google Chrome" --args \
-    --remote-debugging-port=9222 \
-    --user-data-dir="/Users/boboan/Library/Application Support/Google/Chrome/Profile 1"```
-2. 启动项目连接网关(启动example,这个项目只提供一个常规实现，更多个性化请自己写event交互)
+1. 使用 `--remote-debugging-port=9222` 启动 Chrome。  
+   macOS 示例：
+   ```bash
+   open -n -a "Google Chrome" --args \
+     --remote-debugging-port=9222 \
+     --user-data-dir="/Users/xxx/Library/Application Support/Google/Chrome/Profile 1"
+   ```
+2. 启动项目并连接网关（可先启动 example 网关，再启动 client）。
 
-### android
+### Android
 
-需要在安卓机上安装一套可于行的 linux 环境 (termux / aidlux)
+需在安卓上安装可运行 Node 的 Linux 环境（如 Termux / AidLux）。
 
-1. 安装 android-tools
-2. 打开手机usb调试，使用数据线连接安卓手机，输入```adb tcpip 5555``` 打开远程调试端口
-3. 输入```adb connect 192.168.1.100:5555``` 链接安卓手机
-4. 输入```adb forward tcp:9222 localabstract:chrome_devtools_remote``` 打开手机chrome开发者端口，代码会使用 9222 端口
-5. 启动项目连接网关(启动example,这个项目只提供一个常规实现，更多个性化请自己写event交互)
+1. 安装 android-tools  
+2. 开启 USB 调试，数据线连接后执行：`adb tcpip 5555`  
+3. 连接手机：`adb connect 192.168.1.100:5555`  
+4. 转发 Chrome 调试端口：`adb forward tcp:9222 localabstract:chrome_devtools_remote`  
+5. 启动项目连接网关  
 
-手机重启后需要重新连接并打开 9222 端口
+手机重启后需重新执行 adb 连接与端口转发。
 
-## 关于网关
+---
 
-默认是用 socket.io 链接的，如果需要其他链接方式，你可以再 onInit 中自己写代码连接，不过建议还是使用 socket.io 能省很多事
+## 网关与 Socket 协议
 
+默认通过 Socket.IO 连接网关；如需其他传输可在 `onInit` 中自行实现，建议仍使用 Socket.IO 以复用现有事件协议。
 
-### Event
+### 消息类型
 
-类型
 ```ts
-type SendMessageType<T = any> = {
-    payload: T
-}
-
-type ReturnMessageType<T = any> = {
-    code: string,
-    payload: T
-}
+type SendMessageType<T = any> = { payload: T }
+type ReturnMessageType<T = any> = { code: string; payload: T }
 ```
 
-客户端预设
+### 客户端预设事件（网关 → 设备）
 
-**文件系统用**
-- set_file 保存文件
-    payload example:
-    ```ts
-    {
-        payload:{
-            filename: 'script',
-            content: `
-                /**
-                 * @type {import('cdp-client-tool').excuteFn}
-                 */
-                async function capture(ctx) {
-                    const browser = ctx.browser
+**文件系统**
 
-                    console.log("I'm running", ctx)
+| 事件 | 说明 | payload |
+|------|------|--------|
+| `set_file` | 保存文件到 `local_scripts` 目录 | `{ filename, content }` |
+| `read_dir` | 读取目录，返回 `{ name, type: 'file' \| 'dir' }[]` | `{ path }`，如 `"local_scripts"` |
+| `read_file` | 读取文件内容（仅允许 local_scripts、screenshots） | `{ path }` |
+| `rm` | 删除文件（仅允许上述两目录） | `{ path }` |
+| `is_file_exist` | 检测文件是否存在 | `{ path }` |
 
-                    return ctx.greeting
-                }
+**脚本执行**
 
-                module.exports = capture
-            `
-        }
-    }
-    ```
+| 事件 | 说明 | payload |
+|------|------|--------|
+| `exec_local_script` | 执行 `local_scripts` 下脚本，CJS 运行可 `require()` | `{ filename }`，如 `"task1.cjs"` |
+| `exec_remote_script` | 执行下发的脚本字符串（类 CJS 环境，可 `require`） | `{ raw: Buffer }` |
 
-    保存文件到 运行目录下的 local_scripts 目录下,如果没有将新建目录
-- read_dir 读取目录
-    payload example:
+脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting` 等。
 
-    ```ts
-    {
-        payload:{
-            path:"/local_scripts"
-        }
-    }
-    ```
+**示例：exec_local_script**
 
-- read_file 读取文件
-    payload example:
+```ts
+// 网关或调用方发送
+socket.emit('exec_local_script', {
+  payload: { filename: 'task1.cjs' }
+}, (result) => console.log(result));
+```
 
-    ```ts
-    {
-        payload:{
-            path:"/local_scripts/baidu.js"
-        }
-    }
-    ```
+**示例：set_file**
 
-    注意 只允许读取 local_scripts 和 screenshots 目录，其他的会被拒绝
+```ts
+socket.emit('set_file', {
+  payload: {
+    filename: 'script.js',
+    content: `
+      async function capture(ctx) { return ctx.greeting; }
+      module.exports = capture;
+    `
+  }
+}, (res) => console.log(res));
+```
 
-- rm 删除文件
-    payload example:
+其余事件可自定义扩展。
 
-    ```ts
-    {
-        payload:{
-            path:"/local_scripts/baidu.js"
-        }
-    }
-    ```
-
-    注意 只允许删除 local_scripts 和 screenshots 目录下的文件，其他的会被拒绝
-
-- is_file_exist 检测文件是否存在
-    payload example:
-
-    ```ts
-    {
-        payload:{
-            path:"/local_scripts/baidu.js"
-        }
-    }
-    ```
-
-**运行脚本用**
-
-- exec_local_script 运行脚本
-    payload example:
-
-    ```ts
-    {
-        payload:{
-            path:"/{device_name}/local_scripts/baidu.js"
-        }
-    }
-    ```
-- exec_remote_script 运行远程脚本
-
-其余你自己自定义
+---
 
 ## 架构说明（网关 + 资源浏览器）
 
 ```
                     HTTP (页面 + 接口)
     ┌─────────────── Browser ───────────────┐
-    │                                       │
-    │  资源浏览器 UI                          │
-    │  (按设备 → local_scripts/screenshots   │
-    │   展示目录树、预览/下载文件、删除等)       │
+    │  资源浏览器 UI：设备 → local_scripts /  │
+    │  screenshots，目录树、预览/下载、删除    │
     └─────────────────┬─────────────────────┘
-                      │
                       ▼
     ┌────────────── Express 网关 ────────────┐
-    │  • HTTP API：设备列表、目录、读文件、删文件  │
-    │  • Socket.IO Server：接收多设备连接        │
-    │  • 将 HTTP 请求转发为对应设备的 socket 事件 │
+    │  HTTP API：设备列表、目录、读/删文件    │
+    │  Socket.IO：多设备连接，HTTP 转事件    │
     └─────────────────┬─────────────────────┘
                       │ Socket.IO
         ┌─────────────┼─────────────┐
         ▼             ▼             ▼
    Device A      Device B      Device C
-   (client)      (client)      (client)
-   本地目录:      本地目录:      本地目录:
    local_scripts local_scripts local_scripts
    screenshots   screenshots   screenshots
 ```
 
-
-- 多个 **Device**（运行 cdp-client-tool 的客户端）通过 Socket.IO 连接到同一 **Express 网关**。
-- 连接时客户端会上报自己的 **设备名**（如 `gateway.name` 或握手参数），网关用该名字作为「虚拟根」区分设备。
-- 前端通过 **HTTP 接口** 访问「设备 → 目录 → 文件」的虚拟结构；网关再通过 Socket.IO 向对应设备发起 `read_dir` / `read_file` / `rm` 等事件并汇总结果。
+- 多台设备（运行本库的 Client）通过 Socket.IO 连接同一网关，连接时上报 `deviceName`，网关以此区分设备。  
+- 前端通过 HTTP 访问「设备 → 目录 → 文件」的虚拟结构，网关将请求转为对对应设备的 `read_dir` / `read_file` / `rm` 等事件。
 
 ---
 
-## HTTP 接口规范
+## HTTP 接口规范（资源浏览器）
 
-用于在 example 中实现「基于 Socket.IO 的文件系统资源浏览器」：前端只调 HTTP，网关内部转成对指定设备的 Socket 调用。
+Base 示例：`http://localhost:3000`。路径统一为虚拟路径：`/{device_name}/local_scripts/...` 或 `/{device_name}/screenshots/...`。
 
-**约定**
+**错误体**：`{ "code": "400" | "404" | "500", "message": "string" }`
 
-- **Base URL**：由网关决定，例如 `http://localhost:3000`。
-- **路径规范**：所有涉及路径的接口统一使用 **虚拟路径**，格式为 `/{device_name}/<相对路径>`。
-  - 允许的根目录只有两段：`/{device_name}/local_scripts/...` 和 `/{device_name}/screenshots/...`。
-  - 例如：`/device1/local_scripts/baidu.js`、`/device2/screenshots/login.png`。
-- **设备名**：来自设备连接网关时的命名（如客户端 `GatewayConfig.name` 或 Socket 握手时的 `deviceName`），由网关维护「Socket ↔ device_name」映射。
+| 接口 | Method | Path | 说明 |
+|------|--------|------|------|
+| 设备列表 | GET | `/api/devices` | `{ devices: [{ name, connectedAt? }] }` |
+| 读目录 | GET | `/api/fs/dir?device=&path=` | `{ entries: [{ name, type }] }`，type 为 file 或 dir |
+| 读文件 | GET | `/api/fs/file?device=&path=` | 文件流，带 Content-Type / Content-Disposition |
+| 删文件 | DELETE | `/api/fs/file?device=&path=` | `{ ok: true, message: "deleted" }` |
+| 写文件（可选） | POST | `/api/fs/file` | Body: `{ device, path, content }`，转设备 `set_file` |
 
-**统一 JSON 错误体**
-
-```ts
-// 4xx/5xx 时 JSON body
-{
-  "code": "400" | "404" | "500",
-  "message": "string"
-}
-```
-
----
-
-### 1. 获取设备列表
-
-用于资源浏览器第一级展示「所有在线设备」。
-
-| 项目 | 说明 |
-|------|------|
-| **Method** | `GET` |
-| **Path** | `/api/devices` |
-| **Query** | 无 |
-| **Response 200** | `{ "devices": [{ "name": string, "connectedAt?: string }] }` |
-
-示例：
-
-```json
-{
-  "devices": [
-    { "name": "device1", "connectedAt": "2025-03-02T10:00:00.000Z" },
-    { "name": "device2" }
-  ]
-}
-```
-
-- `name`：设备名，后续所有接口的 `path` 都以 `/{name}/...` 开头。
-- `connectedAt`：可选，该设备连接时间（ISO 8601）。
-
----
-
-### 2. 读取目录（列表当前目录下的条目）
-
-一次只返回**某一个目录**下的直接子项（文件/文件夹名），用于前端按层级展示树形结构。
-
-| 项目 | 说明 |
-|------|------|
-| **Method** | `GET` |
-| **Path** | `/api/fs/dir` |
-| **Query** | `device`（必填）：设备名；`path`（必填）：虚拟路径，如 `/device1/local_scripts` 或 `/device1/screenshots` |
-| **校验** | `path` 必须以 `/{device_name}/local_scripts` 或 `/{device_name}/screenshots` 开头（或等于该路径）；且 `path` 中的 device 与 query 的 `device` 一致 |
-| **Response 200** | `{ "entries": [{ "name": string, "type": "file" 或 "dir" }] }` |
-
-说明：网关内部把虚拟路径转成设备侧路径后，向该设备的 Socket 发送 `read_dir` 事件（如虚拟路径 `/{device}/local_scripts` → 设备侧 `local_scripts` 或 `/local_scripts`）。
-
-示例请求：
-
-```
-GET /api/fs/dir?device=device1&path=/device1/local_scripts
-```
-
-示例响应：
-
-```json
-{
-  "entries": [
-    { "name": "baidu.js", "type": "file" },
-    { "name": "tasks", "type": "dir" }
-  ]
-}
-```
-
-若设备侧 `read_dir` 只返回名称列表，网关可根据扩展名或再请求推断 `type`；若设备侧能返回类型则直接映射。
-
-错误：`400` 路径不合法；`404` 设备未连接或路径不存在；`500` 设备执行失败。
-
----
-
-### 3. 读取文件（下载/预览）
-
-返回文件内容，用于预览或下载。只允许 `/{device_name}/local_scripts/...` 和 `/{device_name}/screenshots/...`。
-
-| 项目 | 说明 |
-|------|------|
-| **Method** | `GET` |
-| **Path** | `/api/fs/file` |
-| **Query** | `device`（必填）；`path`（必填）：虚拟路径，如 `/device1/local_scripts/baidu.js` |
-| **校验** | 同「读取目录」的路径前缀规则 |
-| **Response 200** | 直接返回文件二进制流；建议设置 `Content-Type` 和 `Content-Disposition: inline; filename="xxx"`（预览）或 `attachment; filename="xxx"`（下载） |
-
-示例请求：
-
-```
-GET /api/fs/file?device=device1&path=/device1/local_scripts/baidu.js
-```
-
-错误：`400` 路径不合法；`404` 设备未连接或文件不存在；`500` 设备执行失败。
-
----
-
-### 4. 删除文件
-
-只允许删除上述两棵目录树下的文件。
-
-| 项目 | 说明 |
-|------|------|
-| **Method** | `DELETE` |
-| **Path** | `/api/fs/file` |
-| **Query** | `device`（必填）；`path`（必填）：虚拟路径，如 `/device1/screenshots/old.png` |
-| **校验** | 同「读取目录」的路径前缀规则 |
-| **Response 200** | `{ "ok": true, "message": "deleted" }` 或 204 No Content |
-
-示例请求：
-
-```
-DELETE /api/fs/file?device=device1&path=/device1/screenshots/old.png
-```
-
-错误：`400` 路径不合法；`404` 设备未连接或文件不存在；`500` 设备执行失败。
-
----
-
-### 5. 写入文件（可选）
-
-若资源浏览器需要「上传/保存文件到设备」，可提供。
-
-| 项目 | 说明 |
-|------|------|
-| **Method** | `POST` 或 `PUT` |
-| **Path** | `/api/fs/file` |
-| **Body** | `Content-Type: application/json`；`{ "device": string, "path": string, "content": string }`。二进制可用 `multipart/form-data` 或 Base64 的 `content` |
-| **校验** | 同上，仅允许 `/{device}/local_scripts/...` 或 `/{device}/screenshots/...` |
-| **Response 200** | `{ "ok": true, "message": "saved" }` |
-
-网关内部转为对设备的 `set_file` 事件（payload 的 filename 与当前客户端约定一致）。
-
----
-
-### 虚拟目录结构小结
-
-对前端而言，可见结构为：
-
-```
-/{device_name}/
-├── local_scripts/
-│   ├── xxx.js
-│   └── ...
-└── screenshots/
-    ├── xxx.png
-    └── ...
-```
-
-- `read_dir`：只返回**某一层**的直接子项（名称 + 类型）。
-- `read_file`：按 `device + path` 取文件流。
-- `rm`：按 `device + path` 删文件。
-- 所有 path 必须落在 `/{device_name}/local_scripts/...` 或 `/{device_name}/screenshots/...`，否则返回 400。
+虚拟结构：`/{device_name}/local_scripts/...`、`/{device_name}/screenshots/...`，path 须落在此两棵树下，否则 400。
 
 ---
 
@@ -361,4 +185,14 @@ DELETE /api/fs/file?device=device1&path=/device1/screenshots/old.png
 - 内存泄漏
 - 网络超时
 - 执行队列
-- 客户端文件管理(脚本/截图)
+- 客户端文件管理（脚本 / 截图）
+
+---
+
+## 发布到 npm
+
+1. **完善 package.json**（可选）：填写 `repository.url`（如 `git+https://github.com/xxx/cdp-client-tool.git`）、`author`。
+2. **登录 npm**：`npm login`（未账号则到 [npmjs.com](https://www.npmjs.com/) 注册）。
+3. **发包**：在仓库根目录执行 `pnpm run build` 后执行 `npm publish`。  
+   - 作用域包 `@bomon/cdp-client-tool` 已配置 `"publishConfig": { "access": "public" }`，会以公开包发布。  
+   - 若需改版本再发：`npm version patch` 或 `minor` / `major`，再 `npm publish`。

@@ -1,21 +1,47 @@
 {
   "name": "cdp-client-tool",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.1",
+  "description": "一个客户端程序，设计了一套socket.io与http接口的通信协议，可以用于控制浏览器，抓取数据等",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "rollup -c && tsc --emitDeclarationOnly --outDir dist",
+    "prepublishOnly": "pnpm run build",
     "start:client": "pnpm -F client start",
     "start:express": "pnpm -F express-example start"
   },
   "files": [
-    "dist"
+    "dist",
+    "readme.md"
   ],
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "cdp",
+    "puppeteer",
+    "browser",
+    "socket.io",
+    "data-scraping",
+    "automation"
+  ],
+  "author": "ranmeizi",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ranmeizi/cdp-client-tool"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=16"
+  },
   "packageManager": "pnpm@10.27.0",
   "dependencies": {
     "axios": "^1.13.6",
