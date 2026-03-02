@@ -223,7 +223,7 @@ io.on('connection', (socket) => {
         // 等一下初始化好
         socket.emit('exec_local_script', {
             payload: {
-                filename: 'task1.cjs',
+                filename: 'baidu_screenshot.cjs',
             },
         }, res => {
             console.log('res', res)
