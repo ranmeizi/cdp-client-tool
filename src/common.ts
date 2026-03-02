@@ -22,21 +22,25 @@ export type GatewayConfig = {
 }
 
 export type ClientOptions = {
+    deviceName: string // 设备名
     onInit?: (ctx: Client['ctx']) => void
     onError?: (error: any) => void
     gateways: GatewayConfig[]
 }
 
-function validateDir(dir: 'local_scripts' | 'screenshots') {
-    // 检查文件是否存在
-    try {
-        const pathStr = path.resolve(process.cwd(), dir)
-        ensureDir(pathStr, false)
-        return true
-    } catch (e) {
-        // 文件不存在
-        return false
+const ALLOWED_DIRS = ['local_scripts', 'screenshots'] as const
+
+/** 校验 path 是否落在允许的目录下（local_scripts / screenshots） */
+export function resolveAndValidate(basePath: string): string {
+    const cwd = process.cwd()
+    const resolved = path.resolve(cwd, basePath)
+    const allowedRoots = ALLOWED_DIRS.map(d => path.resolve(cwd, d))
+    const normalized = path.normalize(resolved)
+    const allowed = allowedRoots.some(root => normalized === root || normalized.startsWith(root + path.sep))
+    if (!allowed) {
+        throw new Error(`路径仅允许在 ${ALLOWED_DIRS.join('、')} 下`)
     }
+    return resolved
 }
 
 

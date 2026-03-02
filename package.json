@@ -7,8 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "rollup -c && tsc --emitDeclarationOnly --outDir dist",
-    "test": "ts-node src/test.ts",
-    "start:express":"pnpm -F express-example start"
+    "start:client": "pnpm -F client start",
+    "start:express": "pnpm -F express-example start"
   },
   "files": [
     "dist"

@@ -1,5 +1,15 @@
 import chalk from 'chalk';
 
+// chalk v5 为 ESM，在 CJS/打包后可能是 chalk.default，统一取可用的实例；若非函数则不用颜色
+const raw = (chalk as any).default ?? chalk;
+const c = {
+  blue: (s: string) => (typeof raw?.blue === 'function' ? raw.blue(s) : s),
+  green: (s: string) => (typeof raw?.green === 'function' ? raw.green(s) : s),
+  yellow: (s: string) => (typeof raw?.yellow === 'function' ? raw.yellow(s) : s),
+  red: (s: string) => (typeof raw?.red === 'function' ? raw.red(s) : s),
+  magenta: (s: string) => (typeof raw?.magenta === 'function' ? raw.magenta(s) : s),
+};
+
 // 定义日志级别枚举
 enum LogLevel {
   INFO = 'INFO',
@@ -27,19 +37,19 @@ export class Logger {
     let coloredMessage: string;
     switch (level) {
       case LogLevel.INFO:
-        coloredMessage = chalk.blue(`${timestamp} ${levelStr} ${message}`);
+        coloredMessage = c.blue(`${timestamp} ${levelStr} ${message}`);
         break;
       case LogLevel.SUCCESS:
-        coloredMessage = chalk.green(`${timestamp} ${levelStr} ${message}`);
+        coloredMessage = c.green(`${timestamp} ${levelStr} ${message}`);
         break;
       case LogLevel.WARN:
-        coloredMessage = chalk.yellow(`${timestamp} ${levelStr} ${message}`);
+        coloredMessage = c.yellow(`${timestamp} ${levelStr} ${message}`);
         break;
       case LogLevel.ERROR:
-        coloredMessage = chalk.red(`${timestamp} ${levelStr} ${message}`);
+        coloredMessage = c.red(`${timestamp} ${levelStr} ${message}`);
         break;
       case LogLevel.DEBUG:
-        coloredMessage = chalk.magenta(`${timestamp} ${levelStr} ${message}`);
+        coloredMessage = c.magenta(`${timestamp} ${levelStr} ${message}`);
         break;
       default:
         coloredMessage = `${timestamp} ${levelStr} ${message}`;

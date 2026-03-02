@@ -12,10 +12,9 @@ export function sleep(timeout: number) {
 }
 
 export async function launchBrowser() {
-  const debugUrl = 'http://localhost:19222';
+  const debugUrl = 'http://localhost:9222';
   const { data } = await axios.get(`${debugUrl}/json/version`);
   const browserWSEndpoint = data.webSocketDebuggerUrl; // 这是动态变化的地址
-  console.log(`获取到浏览器端点：${browserWSEndpoint}`);
   const browser = await puppeteer.connect({
     browserWSEndpoint: browserWSEndpoint,
     defaultViewport: null,

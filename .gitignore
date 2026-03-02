@@ -3,3 +3,6 @@ dist/
 node_modules/
 .pnpm-store/
 .rollup.cache/
+
+local_scripts/
+screenshots/

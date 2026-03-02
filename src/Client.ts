@@ -9,9 +9,8 @@ import * as requireFromString from 'require-from-string';
 import handlers, { type Handler } from "./presetEventHandlers";
 import { ClientOptions, EVENTS } from "./common";
 
-fs.readdir
-
 const defaultOptions: ClientOptions = {
+    deviceName: 'default',
     gateways: []
 }
 
@@ -33,6 +32,7 @@ export class Client {
             try {
                 return await func(...args);
             } catch (error) {
+                that.logger.error('runCatchFunction error', error)
                 that.options.onError && that.options.onError(error)
             }
         };
@@ -45,24 +45,28 @@ export class Client {
 
         this.options.onInit && this.options.onInit(this.ctx)
 
-
-
         // 连接网关
         for (const gateway of this.options.gateways) {
 
             const warpHandler = (fn: Handler) => {
-                return (data, callback) => fn.call(this, {
-                    data,
-                    callback,
-                    gateway,
-                    ctx: this.ctx
-                })
+                return (data, callback) => {
+                    console.log('see', data, callback)
+                    return fn.call(this, {
+                        data,
+                        callback,
+                        gateway,
+                        ctx: this.ctx
+                    })
+                }
             }
 
-            const socket = io(gateway.uri, gateway.opts);
+            const socket = io(gateway.uri, {
+                ...gateway.opts,
+                query: { ...gateway.opts?.query, deviceName: this.options.deviceName },
+            });
 
-            socket.on('connect',()=>{
-                 this.logger.success(`[${gateway.name}]: socketio 连接成功`);
+            socket.on('connect', () => {
+                this.logger.success(`[${gateway.name}]: socketio 连接成功`);
             })
 
             socket.on('disconnect', () => {
@@ -76,47 +80,8 @@ export class Client {
                 this.logger.error(`[[${gateway.name}]]: socketio 错误`, err)
             })
 
-            socket.on(EVENTS.SET_FILE, ({ payload }, listener) => {
-
-                const { filename, content } = payload
-
-                if (!filename) {
-                    listener({
-                        code: '400',
-                        message: 'filename is required'
-                    })
-                }
-
-                if (!filename.startsWith('modules')) {
-                    listener({
-                        code: '400',
-                        message: 'filename must start with modules'
-                    })
-                }
-
-                try {
-                    saveFile(filename, content)
-                    listener({
-                        code: '200',
-                        message: 'success'
-                    })
-                } catch (e) {
-                    listener({
-                        code: '500',
-                        message: e.message
-                    })
-                }
-
-            })
-
-            socket.on(EVENTS.IS_FILE_EXIST, async ({ payload }, listener) => {
-                const { filename, content } = payload
-
-
-            })
-
             // 预设事件
-            for(const eventName in handlers){
+            for (const eventName in handlers) {
                 socket.on(eventName, warpHandler(handlers[eventName]))
             }
 
@@ -125,9 +90,9 @@ export class Client {
         }
     }
 
-    // 从字符串获取module
+    /** 加载 local_scripts 下的脚本，使用 Node require，脚本以 CJS 运行，内部可使用 require() 引用其他 CJS 模块 */
     public getLocalModule(filename: string) {
-        return import(filename)
+        return require(path.resolve(process.cwd(), 'local_scripts', filename))
     }
 
     public getStringModule(moduleString: string) {
@@ -141,8 +106,4 @@ export class Client {
             browser: this.browser!
         }
     }
-}
-
-function saveFile(path: string, data: string) {
-    fs.writeFileSync(path, data)
 }
