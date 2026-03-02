@@ -179,20 +179,3 @@ Base 示例：`http://localhost:3000`。路径统一为虚拟路径：`/{device_
 虚拟结构：`/{device_name}/local_scripts/...`、`/{device_name}/screenshots/...`，path 须落在此两棵树下，否则 400。
 
 ---
-
-## 需要解决的问题
-
-- 内存泄漏
-- 网络超时
-- 执行队列
-- 客户端文件管理（脚本 / 截图）
-
----
-
-## 发布到 npm
-
-1. **完善 package.json**（可选）：填写 `repository.url`（如 `git+https://github.com/xxx/cdp-client-tool.git`）、`author`。
-2. **登录 npm**：`npm login`（未账号则到 [npmjs.com](https://www.npmjs.com/) 注册）。
-3. **发包**：在仓库根目录执行 `pnpm run build` 后执行 `npm publish`。  
-   - 作用域包 `@bomon/cdp-client-tool` 已配置 `"publishConfig": { "access": "public" }`，会以公开包发布。  
-   - 若需改版本再发：`npm version patch` 或 `minor` / `major`，再 `npm publish`。
