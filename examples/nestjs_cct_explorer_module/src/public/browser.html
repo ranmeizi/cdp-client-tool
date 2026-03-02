@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>设备资源浏览器 - cdp-client-tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #0f172a;
+      --bg-elevated: #020617;
+      --bg-soft: #111827;
+      --border-subtle: #1f2937;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.1);
+      --accent-strong: rgba(56, 189, 248, 0.2);
+      --text: #e5e7eb;
+      --text-muted: #9ca3af;
+      --danger: #f97373;
+      --danger-soft: rgba(248, 113, 113, 0.12);
+      --radius-lg: 10px;
+      --radius-md: 8px;
+      --radius-sm: 6px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top left, #1e293b 0, #020617 45%);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .app-shell {
+      display: flex;
+      width: 100%;
+      max-width: 1320px;
+      margin: 16px;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 90%);
+      box-shadow:
+        0 22px 45px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(15, 23, 42, 0.9) inset;
+    }
+
+    .sidebar {
+      width: 260px;
+      border-right: 1px solid rgba(31, 41, 55, 0.9);
+      background: radial-gradient(circle at top left, #020617 0, #020617 55%, #020617 100%);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 16px 18px 10px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.7);
+    }
+
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-title-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .sidebar-sub {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .devices-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .devices-refresh-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 2px 4px;
+      border-radius: 999px;
+    }
+
+    .devices-refresh-btn:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+    }
+
+    .device-list {
+      flex: 1;
+      overflow: auto;
+      padding: 4px 8px 10px;
+    }
+
+    .device-item {
+      display: flex;
+      align-items: center;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      margin: 2px 0;
+      gap: 8px;
+      transition: background 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+    }
+
+    .device-item:hover {
+      background: rgba(15, 23, 42, 0.9);
+      transform: translateY(-0.5px);
+    }
+
+    .device-item.active {
+      background: linear-gradient(90deg, var(--accent-soft), rgba(15, 23, 42, 0.9));
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.3);
+    }
+
+    .device-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+    }
+
+    .device-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .device-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-footer {
+      padding: 8px 14px 12px;
+      border-top: 1px solid rgba(31, 41, 55, 0.9);
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-footer span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Main */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: radial-gradient(circle at top, #020617 0, #020617 45%, #020617 100%);
+    }
+
+    .main-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 10px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.7);
+    }
+
+    .breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .breadcrumb-part {
+      cursor: pointer;
+      padding: 2px 7px;
+      border-radius: 999px;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .breadcrumb-part:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+    }
+
+    .breadcrumb-part.current {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .breadcrumb-sep {
+      opacity: 0.4;
+    }
+
+    .main-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: #020617;
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 5px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      border-color: rgba(56, 189, 248, 0.7);
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(56, 189, 248, 0.06));
+      color: var(--accent);
+    }
+
+    .btn:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.28), rgba(56, 189, 248, 0.12));
+    }
+
+    .main-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 16px 14px;
+      gap: 10px;
+    }
+
+    .panel {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: radial-gradient(circle at top, #020617 0, #020617 60%, #020617 100%);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .panel-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .file-table-wrapper {
+      flex: 1;
+      overflow: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(31, 41, 55, 0.95);
+      background: rgba(15, 23, 42, 0.96);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 0.98);
+      z-index: 1;
+    }
+
+    th,
+    td {
+      padding: 7px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    tbody tr {
+      cursor: default;
+      transition: background 0.12s ease;
+    }
+
+    tbody tr:hover {
+      background: rgba(17, 24, 39, 0.86);
+    }
+
+    .row-folder {
+      cursor: pointer;
+    }
+
+    .file-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .file-icon.folder {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent);
+    }
+
+    .file-icon.file {
+      background: rgba(59, 130, 246, 0.18);
+      color: #93c5fd;
+    }
+
+    .file-icon.image {
+      background: rgba(16, 185, 129, 0.18);
+      color: #6ee7b7;
+    }
+
+    .file-icon.script {
+      background: rgba(251, 191, 36, 0.18);
+      color: #facc15;
+    }
+
+    .file-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .link-icon {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 2px 4px;
+      cursor: pointer;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .link-icon:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+    }
+
+    .link-icon.danger:hover {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .status-bar {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 2px 2px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .status-dot.warn {
+      background: #f97316;
+    }
+
+    .status-dot.err {
+      background: #ef4444;
+    }
+
+    .status-text {
+      max-width: 280px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge-soft {
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    @media (max-width: 960px) {
+      .app-shell {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+        max-height: 220px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          设备资源浏览器
+          <span class="sidebar-title-badge">CDP CLIENT</span>
+        </div>
+        <div class="sidebar-sub">
+          通过 socket.io 网关浏览各设备脚本与截图
+        </div>
+      </div>
+
+      <div class="devices-header">
+        <span>Devices</span>
+        <button class="devices-refresh-btn" id="btn-refresh-devices">
+          ⟳ 刷新
+        </button>
+      </div>
+
+      <div class="device-list" id="device-list">
+        <!-- 动态插入设备列表 -->
+      </div>
+
+      <div class="sidebar-footer">
+        <span id="selected-device-label">未选择设备</span>
+        <span class="pill">SOCKET.IO</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="main-header">
+        <div class="breadcrumbs" id="breadcrumbs">
+          <span style="font-size:12px;color:var(--text-muted)">请选择左侧设备</span>
+        </div>
+        <div class="main-actions">
+          <button class="btn" id="btn-root-local">local_scripts</button>
+          <button class="btn" id="btn-root-screenshots">screenshots</button>
+          <button class="btn-primary btn" id="btn-refresh-dir">刷新目录</button>
+        </div>
+      </div>
+
+      <div class="main-body">
+        <section class="panel" style="flex: 1 1 auto; min-height: 0;">
+          <div class="panel-header">
+            <div class="panel-title">当前目录</div>
+            <div class="panel-sub" id="panel-subtitle"></div>
+          </div>
+          <div class="file-table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40%;">名称</th>
+                  <th style="width: 20%;">类型</th>
+                  <th style="width: 20%;">所属设备</th>
+                  <th style="width: 20%; text-align: right;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="file-tbody">
+                <!-- 动态插入行 -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="status-bar">
+          <div class="status-badge">
+            <span class="status-dot" id="status-dot"></span>
+            <span style="font-size:11px;">状态</span>
+            <span class="status-text" id="status-text">已加载界面，等待选择设备…</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span class="badge-soft">GET api/devices</span>
+            <span class="badge-soft">GET api/fs/dir</span>
+            <span class="badge-soft">GET api/fs/file</span>
+            <span class="badge-soft">DELETE api/fs/file</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const deviceListEl = document.getElementById('device-list');
+      const selectedDeviceLabelEl = document.getElementById('selected-device-label');
+      const breadcrumbsEl = document.getElementById('breadcrumbs');
+      const fileTbodyEl = document.getElementById('file-tbody');
+      const panelSubtitleEl = document.getElementById('panel-subtitle');
+      const statusTextEl = document.getElementById('status-text');
+      const statusDotEl = document.getElementById('status-dot');
+
+      const btnRefreshDevices = document.getElementById('btn-refresh-devices');
+      const btnRootLocal = document.getElementById('btn-root-local');
+      const btnRootScreenshots = document.getElementById('btn-root-screenshots');
+      const btnRefreshDir = document.getElementById('btn-refresh-dir');
+
+      const state = {
+        devices: [],
+        currentDevice: null,
+        currentPath: null,
+      };
+
+      function setStatus(text, level) {
+        level = level || 'info';
+        statusTextEl.textContent = text;
+        statusDotEl.classList.remove('warn', 'err');
+        if (level === 'warn') statusDotEl.classList.add('warn');
+        else if (level === 'error') statusDotEl.classList.add('err');
+      }
+
+      function joinPath(base, name) {
+        if (!base.endsWith('/')) base += '/';
+        return base + name.replace(/^\/+/, '');
+      }
+
+      function buildFileIcon(name, type) {
+        if (type === 'dir') return { cls: 'folder', label: '📁' };
+        const lower = name.toLowerCase();
+        if (/\.(png|jpg|jpeg|webp)$/.test(lower)) return { cls: 'image', label: '🖼' };
+        if (/\.(js|mjs|ts)$/.test(lower)) return { cls: 'script', label: '</>' };
+        return { cls: 'file', label: '•' };
+      }
+
+      function renderDevices() {
+        deviceListEl.innerHTML = '';
+        if (!state.devices.length) {
+          const empty = document.createElement('div');
+          empty.style.fontSize = '12px';
+          empty.style.color = 'var(--text-muted)';
+          empty.style.padding = '8px 10px';
+          empty.textContent = '暂无在线设备';
+          deviceListEl.appendChild(empty);
+          return;
+        }
+        state.devices.forEach((d) => {
+          const item = document.createElement('div');
+          item.className = 'device-item' + (state.currentDevice === d.name ? ' active' : '');
+          item.innerHTML = '<span class="device-dot"></span><div style="flex:1;min-width:0;"><div class="device-name">' + d.name + '</div><div class="device-meta">' + (d.connectedAt ? new Date(d.connectedAt).toLocaleString() : '已连接') + '</div></div>';
+          item.addEventListener('click', () => {
+            state.currentDevice = d.name;
+            state.currentPath = null;
+            selectedDeviceLabelEl.textContent = '当前设备：' + d.name;
+            renderDevices();
+            renderRootForDevice();
+            setStatus('已选择设备 ' + d.name + '，请选择目录。');
+          });
+          deviceListEl.appendChild(item);
+        });
+      }
+
+      function renderRootForDevice() {
+        const device = state.currentDevice;
+        if (!device) {
+          breadcrumbsEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">请选择左侧设备</span>';
+          fileTbodyEl.innerHTML = '';
+          panelSubtitleEl.textContent = '';
+          return;
+        }
+        state.currentPath = null;
+        breadcrumbsEl.innerHTML = '';
+        const rootCrumb = document.createElement('span');
+        rootCrumb.className = 'breadcrumb-part current';
+        rootCrumb.textContent = '/' + device;
+        breadcrumbsEl.appendChild(rootCrumb);
+        panelSubtitleEl.textContent = '根目录：/' + device + '，选择 local_scripts 或 screenshots';
+        fileTbodyEl.innerHTML = '';
+        [{ name: 'local_scripts', type: 'dir', hint: '脚本文件' }, { name: 'screenshots', type: 'dir', hint: '截图文件' }].forEach((entry) => {
+          const tr = document.createElement('tr');
+          tr.className = 'row-folder';
+          tr.innerHTML = '<td><div class="file-name-cell"><span class="file-icon folder">📁</span><div><div>' + entry.name + '</div><div class="file-meta">' + entry.hint + '</div></div></div></td><td>目录</td><td>' + device + '</td><td></td>';
+          tr.addEventListener('click', () => openDir('/' + device + '/' + entry.name));
+          fileTbodyEl.appendChild(tr);
+        });
+      }
+
+      function renderBreadcrumbs(path) {
+        const device = state.currentDevice;
+        breadcrumbsEl.innerHTML = '';
+        if (!device) return;
+        const parts = path.replace(/^\/+/, '').split('/');
+        const segments = [];
+        for (let i = 0; i < parts.length; i++) {
+          const seg = parts[i];
+          if (!seg) continue;
+          const prev = segments[segments.length - 1] || '';
+          segments.push((prev ? prev + '/' + seg : seg).replace(/^\/+/, ''));
+        }
+        segments.forEach((seg, idx) => {
+          const name = seg.split('/').pop();
+          if (!name) return;
+          if (idx > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'breadcrumb-sep';
+            sep.textContent = '>';
+            breadcrumbsEl.appendChild(sep);
+          }
+          const span = document.createElement('span');
+          span.className = 'breadcrumb-part' + (idx === segments.length - 1 ? ' current' : '');
+          span.textContent = '/' + name;
+          span.addEventListener('click', () => { if (idx === 0) renderRootForDevice(); else openDir('/' + seg); });
+          breadcrumbsEl.appendChild(span);
+        });
+      }
+
+      async function fetchJSON(url) {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) {
+          let msg = res.status + ' ' + res.statusText;
+          try { const data = await res.json(); if (data && data.message) msg = data.message; } catch (_) {}
+          throw new Error(msg);
+        }
+        return res.json();
+      }
+
+      async function loadDevices() {
+        try {
+          setStatus('正在加载设备列表…');
+          const data = await fetchJSON('api/devices');
+          state.devices = data.devices || [];
+          renderDevices();
+          if (!state.currentDevice && state.devices.length) {
+            state.currentDevice = state.devices[0].name;
+            selectedDeviceLabelEl.textContent = '当前设备：' + state.currentDevice;
+            renderDevices();
+            renderRootForDevice();
+            setStatus('已加载设备列表，当前设备：' + state.currentDevice);
+          } else if (!state.devices.length) {
+            selectedDeviceLabelEl.textContent = '未选择设备';
+            fileTbodyEl.innerHTML = '';
+            breadcrumbsEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">暂无在线设备</span>';
+            setStatus('暂无在线设备。', 'warn');
+          } else {
+            setStatus('已刷新设备列表。');
+          }
+        } catch (err) {
+          setStatus('加载设备列表失败：' + err.message, 'error');
+        }
+      }
+
+      async function openDir(path) {
+        const device = state.currentDevice;
+        if (!device) { setStatus('请先选择设备。', 'warn'); return; }
+        state.currentPath = path;
+        try {
+          panelSubtitleEl.textContent = '目录：' + path;
+          setStatus('正在读取目录 ' + path + ' …');
+          const params = new URLSearchParams({ device: device, path: path });
+          const data = await fetchJSON('api/fs/dir?' + params.toString());
+          const entries = data.entries || [];
+          renderBreadcrumbs(path);
+          fileTbodyEl.innerHTML = '';
+          if (!entries.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td colspan="4" style="font-size:12px;color:var(--text-muted);padding:12px 10px;">当前目录下没有文件或子目录。</td>';
+            fileTbodyEl.appendChild(tr);
+          } else {
+            entries.forEach((e) => {
+              const tr = document.createElement('tr');
+              const icon = buildFileIcon(e.name, e.type);
+              tr.innerHTML = '<td><div class="file-name-cell"><span class="file-icon ' + icon.cls + '">' + icon.label + '</span><div><div>' + e.name + '</div><div class="file-meta">' + (e.type === 'dir' ? '目录' : '文件') + '</div></div></div></td><td>' + (e.type === 'dir' ? '目录' : '文件') + '</td><td>' + device + '</td><td><div class="file-actions">' + (e.type === 'file' ? '<button class="link-icon" data-action="view">查看</button><button class="link-icon danger" data-action="delete">删除</button>' : '') + '</div></td>';
+              if (e.type === 'dir') {
+                tr.classList.add('row-folder');
+                tr.addEventListener('click', () => openDir(joinPath(path, e.name)));
+              } else {
+                const actionsCell = tr.querySelector('.file-actions');
+                if (actionsCell) {
+                  actionsCell.addEventListener('click', function (ev) {
+                    ev.stopPropagation();
+                    const target = ev.target;
+                    const filePath = joinPath(path, e.name);
+                    if (target.matches('[data-action="view"]')) window.open('api/fs/file?' + new URLSearchParams({ device, path: filePath }).toString(), '_blank');
+                    else if (target.matches('[data-action="delete"]')) { if (confirm('确定要删除文件 ' + e.name + ' 吗？此操作不可恢复。')) deleteFile(device, filePath); }
+                  });
+                }
+              }
+              fileTbodyEl.appendChild(tr);
+            });
+          }
+          setStatus('目录加载完成：' + path);
+        } catch (err) {
+          setStatus('读取目录失败：' + err.message, 'error');
+        }
+      }
+
+      async function deleteFile(device, path) {
+        try {
+          setStatus('正在删除文件 ' + path + ' …');
+          const params = new URLSearchParams({ device, path });
+          const res = await fetch('api/fs/file?' + params.toString(), { method: 'DELETE' });
+          if (!res.ok) {
+            let msg = res.status + ' ' + res.statusText;
+            try { const data = await res.json(); if (data && data.message) msg = data.message; } catch (_) {}
+            throw new Error(msg);
+          }
+          setStatus('文件已删除：' + path);
+          if (state.currentPath) openDir(state.currentPath);
+        } catch (err) {
+          setStatus('删除文件失败：' + err.message, 'error');
+        }
+      }
+
+      btnRefreshDevices.addEventListener('click', loadDevices);
+      btnRootLocal.addEventListener('click', () => { if (state.currentDevice) openDir('/' + state.currentDevice + '/local_scripts'); else setStatus('请先选择设备。', 'warn'); });
+      btnRootScreenshots.addEventListener('click', () => { if (state.currentDevice) openDir('/' + state.currentDevice + '/screenshots'); else setStatus('请先选择设备。', 'warn'); });
+      btnRefreshDir.addEventListener('click', () => { if (state.currentPath) openDir(state.currentPath); else if (state.currentDevice) renderRootForDevice(); else setStatus('请先选择设备。', 'warn'); });
+
+      loadDevices();
+    })();
+  </script>
+</body>
+
+</html>
