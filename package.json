@@ -15,6 +15,7 @@
   "scripts": {
     "build": "rollup -c && tsc --emitDeclarationOnly --outDir dist",
     "prepublishOnly": "pnpm run build",
+    "build:nestjs": "pnpm -F @bomon/nestjs-cct-explorer build",
     "start:client": "pnpm -F client start",
     "start:express": "pnpm -F express-example start",
     "start:nestjs": "pnpm -F nestjs-example start"
@@ -53,6 +54,7 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "@rollup/plugin-commonjs": "^28.0.2",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-typescript": "^12.1.2",

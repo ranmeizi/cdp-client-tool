@@ -5,6 +5,7 @@ import type {
   DeviceGateway,
   DeviceInfo,
   DirEntry,
+  ScriptQueueSnapshot,
 } from '@bomon/nestjs-cct-explorer';
 
 const SOCKET_ACK_TIMEOUT_MS = 15000;
@@ -119,5 +120,13 @@ export class SocketIoDeviceGateway implements DeviceGateway {
     await this.emitWithAck(socket, 'set_file', {
       payload: { filename: devicePath, content },
     });
+  }
+
+  async getScriptQueue(device: string): Promise<ScriptQueueSnapshot> {
+    const socket = this.getSocket(device);
+    const snapshot = await this.emitWithAck<ScriptQueueSnapshot>(socket, 'script_queue', {
+      payload: {},
+    });
+    return snapshot;
   }
 }

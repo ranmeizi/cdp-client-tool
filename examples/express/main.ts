@@ -12,9 +12,37 @@ const io = new Server(server);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+type ScriptJobStatus = 'pending' | 'running' | 'success' | 'failed'
+
+interface ScriptJob {
+  id: string;
+  type: 'local' | 'remote';
+  filename?: string;
+  description?: string;
+  createdAt: number;
+  startedAt?: number;
+  finishedAt?: number;
+  status: ScriptJobStatus;
+  errorMessage?: string;
+}
+
+interface ScriptQueueSnapshot {
+  running: ScriptJob | null;
+  pending: ScriptJob[];
+  capacity: number;
+}
+
 // ---------- 设备注册：deviceName <-> socket ----------
 const deviceNameToSocket = new Map<string, { socket: Socket; connectedAt: string }>();
 const socketIdToDeviceName = new Map<string, string>();
+
+interface DeviceQueueState {
+  snapshot: ScriptQueueSnapshot | null;
+  updatedAt: number;
+  error?: string;
+}
+
+const deviceQueues = new Map<string, DeviceQueueState>();
 
 function registerDevice(deviceName: string, socket: Socket) {
     const existing = deviceNameToSocket.get(deviceName);
@@ -70,6 +98,47 @@ function emitWithAck<T>(
     });
 }
 
+// ---------- 周期性刷新所有设备的脚本队列 ----------
+let isRefreshingQueues = false;
+
+async function refreshAllDeviceQueues() {
+    const entries = Array.from(deviceNameToSocket.entries());
+    if (!entries.length) return;
+
+    const now = Date.now();
+    await Promise.all(
+        entries.map(async ([name, meta]) => {
+            try {
+                const snapshot = await emitWithAck<ScriptQueueSnapshot>(meta.socket, 'script_queue', {
+                    payload: {},
+                });
+                deviceQueues.set(name, {
+                    snapshot,
+                    updatedAt: now,
+                });
+            } catch (err: any) {
+                deviceQueues.set(name, {
+                    snapshot: null,
+                    updatedAt: now,
+                    error: err?.message || '获取队列失败',
+                });
+            }
+        })
+    );
+}
+
+setInterval(() => {
+    if (isRefreshingQueues) return;
+    isRefreshingQueues = true;
+    refreshAllDeviceQueues()
+        .catch((err) => {
+            console.error('刷新设备脚本队列失败:', err);
+        })
+        .finally(() => {
+            isRefreshingQueues = false;
+        });
+}, 1000);
+
 // ---------- 静态与页面 ----------
 app.use('/static', express.static(join(__dirname, 'public')));
 app.get('/browser', (req, res) => {
@@ -78,10 +147,16 @@ app.get('/browser', (req, res) => {
 
 // ---------- HTTP API：设备列表 ----------
 app.get('/api/devices', (req, res) => {
-    const devices = Array.from(deviceNameToSocket.entries()).map(([name, meta]) => ({
-        name,
-        connectedAt: meta.connectedAt,
-    }));
+    const devices = Array.from(deviceNameToSocket.entries()).map(([name, meta]) => {
+        const queueState = deviceQueues.get(name);
+        return {
+            name,
+            connectedAt: meta.connectedAt,
+            scriptQueue: queueState?.snapshot ?? null,
+            queueUpdatedAt: queueState?.updatedAt ?? null,
+            queueError: queueState?.error ?? null,
+        };
+    });
     res.json({ devices });
 });
 
@@ -205,6 +280,41 @@ app.delete('/api/fs/file', (req, res) => {
         });
 });
 
+// ---------- HTTP API：脚本队列 ----------
+app.get('/api/scripts/queue', (req, res) => {
+    const device = req.query.device as string;
+    if (!device) {
+        return res.status(400).json({ code: '400', message: '缺少 device' });
+    }
+    const meta = deviceNameToSocket.get(device);
+    if (!meta) {
+        return res.status(404).json({ code: '404', message: '设备未连接' });
+    }
+    const cached = deviceQueues.get(device);
+    if (cached && Date.now() - cached.updatedAt < 2000 && cached.snapshot) {
+        return res.json(cached.snapshot);
+    }
+    emitWithAck<ScriptQueueSnapshot>(meta.socket, 'script_queue', { payload: {} })
+        .then((snapshot) => {
+            deviceQueues.set(device, {
+                snapshot,
+                updatedAt: Date.now(),
+            });
+            res.json(snapshot);
+        })
+        .catch((err) => {
+            deviceQueues.set(device, {
+                snapshot: null,
+                updatedAt: Date.now(),
+                error: err?.message || '获取队列失败',
+            });
+            res.status(500).json({
+                code: '500',
+                message: err?.message || '获取队列失败',
+            });
+        });
+});
+
 // ---------- Socket.IO：设备连接时注册，断开时注销 ----------
 io.on('connection', (socket) => {
     const deviceName =
@@ -219,16 +329,17 @@ io.on('connection', (socket) => {
         console.log('device disconnected:', deviceName, reason);
     });
 
-    setTimeout(() => {
-        // 等一下初始化好
-        socket.emit('exec_local_script', {
-            payload: {
-                filename: 'baidu_screenshot.cjs',
-            },
-        }, res => {
-            console.log('res', res)
-        });
-    }, 5000);
+    for(let i = 0; i < 10; i++) {
+        setTimeout(() => {
+            socket.emit('exec_local_script', {
+                payload: {
+                    filename: 'queue.cjs',
+                },
+            }, res => {
+                console.log('res', res)
+            });
+        }, i * 1000);
+    }
 
 });
 

@@ -556,6 +556,16 @@
           </div>
         </section>
 
+        <section class="panel" id="script-queue-panel" style="flex: 0 0 auto;">
+          <div class="panel-header">
+            <div class="panel-title">脚本队列</div>
+            <div class="panel-sub" id="script-queue-subtitle">选择设备后每秒刷新</div>
+          </div>
+          <div id="script-queue-content" style="font-size:12px;color:var(--text-muted);min-height:48px;">
+            未选择设备
+          </div>
+        </section>
+
         <div class="status-bar">
           <div class="status-badge">
             <span class="status-dot" id="status-dot"></span>
@@ -591,8 +601,79 @@
       const state = {
         devices: [],
         currentDevice: null,
-        currentPath: null, // 形如 /device1/local_scripts/path
+        currentPath: null,
+        queuePollTimer: null,
       };
+
+      function formatElapsed(startedAt) {
+        if (!startedAt) return '';
+        const s = Math.floor((Date.now() - startedAt) / 1000);
+        if (s < 60) return s + ' 秒';
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return m + ' 分 ' + r + ' 秒';
+      }
+
+      function jobLabel(job) {
+        return job.filename || job.description || job.id || job.type;
+      }
+
+      async function loadScriptQueue() {
+        const device = state.currentDevice;
+        const el = document.getElementById('script-queue-content');
+        const sub = document.getElementById('script-queue-subtitle');
+        if (!device) {
+          el.textContent = '未选择设备';
+          sub.textContent = '选择设备后每秒刷新';
+          return;
+        }
+        const meta = state.devices.find((d) => d.name === device);
+        if (!meta) {
+          el.textContent = '未找到设备信息';
+          sub.textContent = '';
+          return;
+        }
+        const data = meta.scriptQueue;
+        if (!data) {
+          el.textContent = '暂无脚本队列信息（等待服务端刷新）';
+          sub.textContent = meta.queueError ? ('上次刷新失败：' + meta.queueError) : '选择设备后每秒刷新';
+          return;
+        }
+        const cap = data.capacity != null ? data.capacity : 10;
+        const running = data.running || null;
+        const pending = data.pending || [];
+        const total = (running ? 1 : 0) + pending.length;
+        sub.textContent = total + ' / ' + cap + ' 占用';
+        let html = '';
+        if (running) {
+          const elapsed = formatElapsed(running.startedAt);
+          html += '<div style="margin-bottom:6px;"><span style="color:var(--accent);">▶ 运行中</span> ' + jobLabel(running) + (elapsed ? ' <span style="color:var(--text-muted);">已运行 ' + elapsed + '</span>' : '') + '</div>';
+        } else {
+          html += '<div style="margin-bottom:6px;color:var(--text-muted);">无运行中脚本</div>';
+        }
+        if (pending.length) {
+          html += '<div style="color:var(--text-muted);">排队中 (' + pending.length + ')：</div>';
+          pending.forEach(function (j, i) {
+            html += '<div style="padding-left:8px;">' + (i + 1) + '. ' + jobLabel(j) + '</div>';
+          });
+        } else {
+          html += '<div style="color:var(--text-muted);">无排队任务</div>';
+        }
+        el.innerHTML = html;
+      }
+
+      function startQueuePoll() {
+        if (state.queuePollTimer) clearInterval(state.queuePollTimer);
+        state.queuePollTimer = setInterval(loadScriptQueue, 1000);
+        loadScriptQueue();
+      }
+
+      function stopQueuePoll() {
+        if (state.queuePollTimer) {
+          clearInterval(state.queuePollTimer);
+          state.queuePollTimer = null;
+        }
+      }
 
       function setStatus(text, level = 'info') {
         statusTextEl.textContent = text;
@@ -650,6 +731,7 @@
             selectedDeviceLabelEl.textContent = '当前设备：' + d.name;
             renderDevices();
             renderRootForDevice();
+            startQueuePoll();
             setStatus('已选择设备 ' + d.name + '，请选择目录。');
           });
 
@@ -779,11 +861,14 @@
             selectedDeviceLabelEl.textContent = '当前设备：' + state.currentDevice;
             renderDevices();
             renderRootForDevice();
+            startQueuePoll();
             setStatus('已加载设备列表，当前设备：' + state.currentDevice);
           } else if (!state.devices.length) {
             selectedDeviceLabelEl.textContent = '未选择设备';
+            state.currentDevice = null;
             fileTbodyEl.innerHTML = '';
             breadcrumbsEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">暂无在线设备</span>';
+            stopQueuePoll();
             setStatus('暂无在线设备。', 'warn');
           } else {
             setStatus('已刷新设备列表。');
@@ -943,6 +1028,8 @@
 
       // 首次加载
       loadDevices();
+      // 设备列表轮询（页面打开期间每秒拉一次）
+      setInterval(loadDevices, 1000);
     })();
   </script>
 </body>

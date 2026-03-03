@@ -1,4 +1,3 @@
-import * as path from 'node:path'
 import { Client } from "./Client"
 import { EVENTS, GatewayConfig, resolveAndValidate } from "./common"
 import { readFile, rm, readdir } from 'node:fs/promises'
@@ -18,8 +17,10 @@ type EventPayloads = {
     [EVENTS.RM]: { payload: { path: string, recursive?: boolean } },
     [EVENTS.READ_FILE]: { payload: { path: string } },
     // 执行脚本
-    [EVENTS.EXEX_REMOTE_SCRIPT]: { payload: { raw: Buffer } },
+    [EVENTS.EXEC_REMOTE_SCRIPT]: { payload: { raw: Buffer } },
     [EVENTS.EXEC_LOCAL_SCRIPT]: { payload: { filename: string } },
+    // 队列查询
+    [EVENTS.SCRIPT_QUEUE]: { payload: {} },
 }
 
 type HandlerMap = { [K in keyof EventPayloads]: Handler<EventPayloads[K]> }
@@ -27,23 +28,16 @@ type HandlerMap = { [K in keyof EventPayloads]: Handler<EventPayloads[K]> }
 
 const handlers: Partial<HandlerMap> = {
     // 运行远程脚本
-    async [EVENTS.EXEX_REMOTE_SCRIPT]({ data, callback }) {
+    async [EVENTS.EXEC_REMOTE_SCRIPT]({ data, callback }) {
         const { payload } = data
-        const script = this.getStringModule(payload.raw.toString())
-        const run = this.runCatchFunction(async () => await script(this.ctx))
-        const res = await run()
+        const res = this.enqueueRemoteScript(payload.raw)
         callback(res)
     },
 
     // 运行本地脚本
     async [EVENTS.EXEC_LOCAL_SCRIPT]({ data, callback }) {
         const { payload } = data
-        console.log('callback', callback)
-        const script = this.getLocalModule(payload.filename)
-
-        const run = this.runCatchFunction(() => script(this.ctx))
-        const res = await run()
-        console.log('res yunxin jiao ben', res)
+        const res = this.enqueueLocalScript(payload.filename)
         callback(res)
     },
 
@@ -85,6 +79,12 @@ const handlers: Partial<HandlerMap> = {
         const run = this.runCatchFunction(async () => await rm(filePath, { force: true }))
         await run()
         callback({ ok: true })
+    },
+
+    // 查询脚本执行队列
+    async [EVENTS.SCRIPT_QUEUE]({ callback }) {
+        const snapshot = this.getScriptQueueSnapshot()
+        callback(snapshot)
     },
 }
 
