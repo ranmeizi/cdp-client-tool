@@ -19,6 +19,7 @@ import {
   CctExplorerModuleOptions,
 } from './tokens';
 import { parseVirtualPath } from './path-utils';
+import { DeviceQueueCacheService } from './device-queue-cache.service';
 
 @Controller()
 export class CctExplorerController {
@@ -27,6 +28,7 @@ export class CctExplorerController {
     private readonly gateway: DeviceGateway,
     @Inject(CCT_EXPLORER_OPTIONS)
     private readonly options: CctExplorerModuleOptions,
+    private readonly queueCache: DeviceQueueCacheService,
   ) {}
 
   @Get('browser')
@@ -38,7 +40,16 @@ export class CctExplorerController {
   @Get('api/devices')
   async getDevices() {
     const devices = await this.gateway.listDevices();
-    return { devices };
+    const enriched = devices.map((d) => {
+      const state = this.queueCache.getState(d.name);
+      return {
+        ...d,
+        scriptQueue: state?.snapshot ?? null,
+        queueUpdatedAt: state?.updatedAt ?? null,
+        queueError: state?.error ?? null,
+      };
+    });
+    return { devices: enriched };
   }
 
   @Get('api/fs/dir')
@@ -173,5 +184,27 @@ export class CctExplorerController {
     }
     await this.gateway.writeFile(device, parsed.devicePath, content ?? '');
     return { ok: true, message: 'saved' };
+  }
+
+  @Get('api/scripts/queue')
+  async getScriptQueue(@Query('device') device: string) {
+    if (!this.gateway.getScriptQueue) {
+      throw new HttpException(
+        { code: '400', message: '当前网关未实现队列查询能力' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!device) {
+      throw new HttpException(
+        { code: '400', message: '缺少 device' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const cached = this.queueCache.getState(device);
+    if (cached?.snapshot && Date.now() - cached.updatedAt < 2000) {
+      return cached.snapshot;
+    }
+    const snapshot = await this.gateway.getScriptQueue(device);
+    return snapshot;
   }
 }

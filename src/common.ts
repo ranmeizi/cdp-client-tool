@@ -10,7 +10,8 @@ export enum EVENTS {
     READ_DIR = "read_dir", // 读取目录
     READ_FILE = "read_file", // 读取文件    
     EXEC_LOCAL_SCRIPT = "exec_local_script", // 执行本地脚本
-    EXEX_REMOTE_SCRIPT = "exec_remote_script", // 执行远程脚本
+    EXEC_REMOTE_SCRIPT = "exec_remote_script", // 执行远程脚本
+    SCRIPT_QUEUE = "script_queue", // 查询脚本执行队列
 }
 
 export type GatewayConfig = {

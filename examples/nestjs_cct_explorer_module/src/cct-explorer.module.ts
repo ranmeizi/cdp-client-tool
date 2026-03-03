@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { CctExplorerController } from './cct-explorer.controller';
+import { DeviceQueueCacheService } from './device-queue-cache.service';
 import {
   CCT_EXPLORER_OPTIONS,
   CctExplorerModuleOptions,
@@ -23,6 +24,7 @@ export class CctExplorerModule {
           provide: DEVICE_GATEWAY_TOKEN,
           useExisting: deviceGatewayClass,
         },
+        DeviceQueueCacheService,
       ],
       exports: [CCT_EXPLORER_OPTIONS, DEVICE_GATEWAY_TOKEN],
     };
