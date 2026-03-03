@@ -17,8 +17,8 @@ type EventPayloads = {
     [EVENTS.RM]: { payload: { path: string, recursive?: boolean } },
     [EVENTS.READ_FILE]: { payload: { path: string } },
     // 执行脚本
-    [EVENTS.EXEC_REMOTE_SCRIPT]: { payload: { raw: Buffer } },
-    [EVENTS.EXEC_LOCAL_SCRIPT]: { payload: { filename: string } },
+    [EVENTS.EXEC_REMOTE_SCRIPT]: { payload: { raw: Buffer, params?: any } },
+    [EVENTS.EXEC_LOCAL_SCRIPT]: { payload: { filename: string, params?: any } },
     // 队列查询
     [EVENTS.SCRIPT_QUEUE]: { payload: {} },
 }
@@ -30,14 +30,14 @@ const handlers: Partial<HandlerMap> = {
     // 运行远程脚本
     async [EVENTS.EXEC_REMOTE_SCRIPT]({ data, callback }) {
         const { payload } = data
-        const res = this.enqueueRemoteScript(payload.raw)
+        const res = this.enqueueRemoteScript(payload.raw, payload.params)
         callback(res)
     },
 
     // 运行本地脚本
     async [EVENTS.EXEC_LOCAL_SCRIPT]({ data, callback }) {
         const { payload } = data
-        const res = this.enqueueLocalScript(payload.filename)
+        const res = this.enqueueLocalScript(payload.filename, payload.params)
         callback(res)
     },
 
