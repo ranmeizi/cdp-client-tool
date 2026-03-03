@@ -106,18 +106,21 @@ type ReturnMessageType<T = any> = { code: string; payload: T }
 
 | 事件 | 说明 | payload |
 |------|------|--------|
-| `exec_local_script` | 执行 `local_scripts` 下脚本，CJS 运行可 `require()`，走脚本队列 | `{ filename }`，如 `"task1.cjs"` |
-| `exec_remote_script` | 执行下发的脚本字符串（类 CJS 环境，可 `require`），走脚本队列 | `{ raw: Buffer }` |
+| `exec_local_script` | 执行 `local_scripts` 下脚本，CJS 运行可 `require()`，走脚本队列 | `{ filename, params? }`，如 `{ filename: "task1.cjs", params: { share_code: "hk-00700" } }` |
+| `exec_remote_script` | 执行下发的脚本字符串（类 CJS 环境，可 `require`），走脚本队列 | `{ raw: Buffer, params? }` |
 | `script_queue` | 查询当前设备脚本队列快照（网关轮询或按需拉取） | `{}`，回调返回 `{ running, pending, capacity }` |
 
-脚本执行采用队列（默认容量 10）：请求会立即返回 `executing` / `queued` / `overflow`，实际在队列中顺序执行。脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting` 等。
+脚本执行采用队列（默认容量 10）：请求会立即返回 `executing` / `queued` / `overflow`，实际在队列中顺序执行。脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting`、`params`（server 下发的可选参数）。资源浏览器中，鼠标悬停任务可查看 params。
 
 **示例：exec_local_script**
 
 ```ts
-// 网关或调用方发送
+// 网关或调用方发送，可带 params 传递参数给脚本
 socket.emit('exec_local_script', {
-  payload: { filename: 'task1.cjs' }
+  payload: {
+    filename: 'task1.cjs',
+    params: { share_code: 'hk-00700' }
+  }
 }, (result) => console.log(result));
 ```
 
@@ -183,21 +186,3 @@ Base 示例：`http://localhost:3000`。路径统一为虚拟路径：`/{device_
 | 写文件（可选） | POST | `/api/fs/file` | Body: `{ device, path, content }`，转设备 `set_file` |
 
 虚拟结构：`/{device_name}/local_scripts/...`、`/{device_name}/screenshots/...`，path 须落在此两棵树下，否则 400。
-
----
-
-## 需要解决的问题
-
-- 内存泄漏
-- 网络超时
-- 客户端文件管理（脚本 / 截图）
-
----
-
-## 发布到 npm
-
-1. **完善 package.json**（可选）：填写 `repository.url`（如 `git+https://github.com/xxx/cdp-client-tool.git`）、`author`。
-2. **登录 npm**：`npm login`（未账号则到 [npmjs.com](https://www.npmjs.com/) 注册）。
-3. **发包**：在仓库根目录执行 `pnpm run build` 后执行 `npm publish`。  
-   - 作用域包 `@bomon/cdp-client-tool` 已配置 `"publishConfig": { "access": "public" }`，会以公开包发布。  
-   - 若需改版本再发：`npm version patch` 或 `minor` / `major`，再 `npm publish`。

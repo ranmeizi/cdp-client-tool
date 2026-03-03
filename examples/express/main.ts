@@ -329,17 +329,30 @@ io.on('connection', (socket) => {
         console.log('device disconnected:', deviceName, reason);
     });
 
-    for(let i = 0; i < 10; i++) {
-        setTimeout(() => {
-            socket.emit('exec_local_script', {
-                payload: {
-                    filename: 'queue.cjs',
-                },
-            }, res => {
-                console.log('res', res)
-            });
-        }, i * 1000);
-    }
+    // for(let i = 0; i < 10; i++) {
+    //     setTimeout(() => {
+    //         socket.emit('exec_local_script', {
+    //             payload: {
+    //                 filename: 'queue.cjs',
+    //             },
+    //         }, res => {
+    //             console.log('res', res)
+    //         });
+    //     }, i * 1000);
+    // }
+
+    setTimeout(() => {
+        socket.emit('exec_local_script', {
+            payload: {
+                filename: 'test1.cjs',
+                params: {
+                    share_code: 'hk-00700',
+                }
+            },
+        }, res => {
+            console.log('res', res)
+        });
+    }, 5000);
 
 });
 
