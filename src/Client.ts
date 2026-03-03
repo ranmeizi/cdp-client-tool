@@ -21,6 +21,7 @@ export type ScriptJob = {
     type: ScriptJobType
     filename?: string
     description?: string
+    params?: any
     createdAt: number
     startedAt?: number
     finishedAt?: number
@@ -157,34 +158,38 @@ export class Client {
     }
 
     /** 入队远程脚本执行 */
-    public enqueueRemoteScript(raw: Buffer): ExecQueueResult {
+    public enqueueRemoteScript(raw: Buffer, params?: any): ExecQueueResult {
         const job: ScriptJob = {
             id: this.nextJobId(),
             type: 'remote',
             description: 'remote_script',
+            params,
             createdAt: Date.now(),
             status: 'pending',
         }
         return this.enqueueJob(job, async () => {
             const script = this.getStringModule(raw.toString())
-            const run = this.runCatchFunction(async () => await script(this.ctx))
+            const runCtx = { ...this.ctx, params: params ?? {} }
+            const run = this.runCatchFunction(async () => await script(runCtx))
             await run()
         })
     }
 
     /** 入队本地脚本执行 */
-    public enqueueLocalScript(filename: string): ExecQueueResult {
+    public enqueueLocalScript(filename: string, params?: any): ExecQueueResult {
         const job: ScriptJob = {
             id: this.nextJobId(),
             type: 'local',
             filename,
             description: filename,
+            params,
             createdAt: Date.now(),
             status: 'pending',
         }
         return this.enqueueJob(job, async () => {
             const script = this.getLocalModule(filename)
-            const run = this.runCatchFunction(() => script(this.ctx))
+            const runCtx = { ...this.ctx, params: params ?? {} }
+            const run = this.runCatchFunction(async () => await script(runCtx))
             await run()
         })
     }
