@@ -476,6 +476,41 @@
       border: 1px solid rgba(31, 41, 55, 0.9);
     }
 
+    .job-item-has-params {
+      cursor: help;
+      border-bottom: 1px dotted var(--text-muted);
+      position: relative;
+    }
+
+    .job-params-tooltip {
+      position: absolute;
+      left: 0;
+      bottom: 100%;
+      margin-bottom: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      white-space: pre-wrap;
+      max-width: 320px;
+      max-height: 200px;
+      overflow: auto;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s, visibility 0.15s;
+      z-index: 1000;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      color: var(--text);
+    }
+
+    .job-item-has-params:hover .job-params-tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
     @media (max-width: 960px) {
       .app-shell {
         flex-direction: column;
@@ -617,6 +652,38 @@
         return job.filename || job.description || job.id || job.type;
       }
 
+      function escapeHtml(s) {
+        if (!s) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function jobParamsStr(job) {
+        if (!job.params || (typeof job.params === 'object' && Object.keys(job.params).length === 0)) return '';
+        try {
+          return JSON.stringify(job.params, null, 2);
+        } catch (e) {
+          return String(job.params);
+        }
+      }
+
+      function jobItemAttrs(job) {
+        return jobParamsStr(job) ? ' class="job-item-has-params"' : '';
+      }
+
+      function jobParamsTooltip(job) {
+        var s = jobParamsStr(job);
+        if (!s) return '';
+        return '<span class="job-params-tooltip">params:\n' + escapeHtml(s) + '</span>';
+      }
+
+      function jobParamsBadge(job) {
+        return jobParamsStr(job) ? ' <span style="opacity:0.7;font-size:10px;">📋 悬停查看 params</span>' : '';
+      }
+
       function loadScriptQueue() {
         var device = state.currentDevice;
         var el = document.getElementById('script-queue-content');
@@ -646,14 +713,14 @@
         var html = '';
         if (running) {
           var elapsed = formatElapsed(running.startedAt);
-          html += '<div style="margin-bottom:6px;"><span style="color:var(--accent);">▶ 运行中</span> ' + jobLabel(running) + (elapsed ? ' <span style="color:var(--text-muted);">已运行 ' + elapsed + '</span>' : '') + '</div>';
+          html += '<div style="margin-bottom:6px;"' + jobItemAttrs(running) + '>' + jobParamsTooltip(running) + '<span style="color:var(--accent);">▶ 运行中</span> ' + jobLabel(running) + jobParamsBadge(running) + (elapsed ? ' <span style="color:var(--text-muted);">已运行 ' + elapsed + '</span>' : '') + '</div>';
         } else {
           html += '<div style="margin-bottom:6px;color:var(--text-muted);">无运行中脚本</div>';
         }
         if (pending.length) {
           html += '<div style="color:var(--text-muted);">排队中 (' + pending.length + ')：</div>';
           pending.forEach(function (j, i) {
-            html += '<div style="padding-left:8px;">' + (i + 1) + '. ' + jobLabel(j) + '</div>';
+            html += '<div style="padding-left:8px;"' + jobItemAttrs(j) + '>' + jobParamsTooltip(j) + (i + 1) + '. ' + jobLabel(j) + jobParamsBadge(j) + '</div>';
           });
         } else {
           html += '<div style="color:var(--text-muted);">无排队任务</div>';

@@ -64,7 +64,11 @@ Default: Socket.IO. Message types: `SendMessageType<T> = { payload: T }`, `Retur
 
 **File system**: `set_file`, `read_dir`, `read_file`, `rm`, `is_file_exist`.
 
-**Script execution**: `exec_local_script` (queue), `exec_remote_script` (queue), `script_queue` (returns `{ running, pending, capacity }`). Queue capacity 10; responses: `executing` / `queued` / `overflow`. Entry: `module.exports = async function capture(ctx) { ... }`.
+**Script execution**: `exec_local_script` (queue), `exec_remote_script` (queue), `script_queue` (returns `{ running, pending, capacity }`). Payload supports optional `params` for passing arguments to scripts. Queue capacity 10; responses: `executing` / `queued` / `overflow`. Entry: `module.exports = async function capture(ctx) { ... }`.
+
+- `exec_local_script`: `{ filename, params? }`
+- `exec_remote_script`: `{ raw: Buffer, params? }`
+- `ctx` includes `browser`, `greeting`, `params` (optional). Resource browser shows params on hover.
 
 ---
 
@@ -88,15 +92,3 @@ Base: `http://localhost:3000`. Virtual paths: `/{device_name}/local_scripts/...`
 | Write file (optional) | POST | `/api/fs/file` | Body `{ device, path, content }`; forwarded to device `set_file` |
 
 Error body: `{ "code": "400"|"404"|"500", "message": "string" }`.
-
----
-
-## Open issues
-
-Memory leaks, network timeouts, client file management (scripts / screenshots).
-
----
-
-## Publish to npm
-
-`npm login`, then from repo root: `pnpm run build` and `npm publish`. Scoped package has `publishConfig.access: "public"`. Version: `npm version patch|minor|major` then `npm publish`.
