@@ -4,7 +4,6 @@ import * as path from "node:path"
 import { ensureDir } from "./utils"
 
 export enum EVENTS {
-    SET_FILE = "set_file",
     IS_FILE_EXIST = "is_file_exist",
     WRITE_FILE = 'write_file', // 写入文件 基本与nodefs的一致，多了前缀校验 和 空文件夹处理
     RM = "rm", // 删除文件

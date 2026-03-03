@@ -9,7 +9,11 @@ const client = new Client({
   gateways: [
     {
       name: "local",
-      uri: "http://localhost:3000",
+      uri: "http://localhost:3000/cct_ws",
+      opts:{
+        transports: ['websocket'],
+        path: '/socket.io',
+      }
     },
   ],
 });
