@@ -103,7 +103,8 @@ export class Client {
     get ctx() {
         return {
             greeting: 'hello, remote script',
-            browser: this.browser!
+            browser: this.browser!,
+            logger: this.logger
         }
     }
 }
