@@ -2,6 +2,8 @@
 
 一个客户端程序，通过 Socket.IO 与 HTTP 接口与网关通信，用于控制浏览器、抓取数据等。适用于在安卓机 / Linux 上运行的数据抓取 Client。
 
+**English** · [README (English)](readme.en.md)
+
 - **包名**：`cdp-client-tool`
 - **入口**：`Client`、`EVENTS`、类型 `ClientOptions` / `GatewayConfig` / `excuteFn`
 
@@ -104,10 +106,11 @@ type ReturnMessageType<T = any> = { code: string; payload: T }
 
 | 事件 | 说明 | payload |
 |------|------|--------|
-| `exec_local_script` | 执行 `local_scripts` 下脚本，CJS 运行可 `require()` | `{ filename }`，如 `"task1.cjs"` |
-| `exec_remote_script` | 执行下发的脚本字符串（类 CJS 环境，可 `require`） | `{ raw: Buffer }` |
+| `exec_local_script` | 执行 `local_scripts` 下脚本，CJS 运行可 `require()`，走脚本队列 | `{ filename }`，如 `"task1.cjs"` |
+| `exec_remote_script` | 执行下发的脚本字符串（类 CJS 环境，可 `require`），走脚本队列 | `{ raw: Buffer }` |
+| `script_queue` | 查询当前设备脚本队列快照（网关轮询或按需拉取） | `{}`，回调返回 `{ running, pending, capacity }` |
 
-脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting` 等。
+脚本执行采用队列（默认容量 10）：请求会立即返回 `executing` / `queued` / `overflow`，实际在队列中顺序执行。脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting` 等。
 
 **示例：exec_local_script**
 
@@ -141,8 +144,9 @@ socket.emit('set_file', {
 ```
                     HTTP (页面 + 接口)
     ┌─────────────── Browser ───────────────┐
-    │  资源浏览器 UI：设备 → local_scripts /  │
-    │  screenshots，目录树、预览/下载、删除    │
+    │  资源浏览器 UI：设备列表、脚本队列（运行中│
+    │  + 已运行时间、排队）、local_scripts /   │
+    │  screenshots 目录树、预览/下载、删除     │
     └─────────────────┬─────────────────────┘
                       ▼
     ┌────────────── Express 网关 ────────────┐
@@ -158,7 +162,8 @@ socket.emit('set_file', {
 ```
 
 - 多台设备（运行本库的 Client）通过 Socket.IO 连接同一网关，连接时上报 `deviceName`，网关以此区分设备。  
-- 前端通过 HTTP 访问「设备 → 目录 → 文件」的虚拟结构，网关将请求转为对对应设备的 `read_dir` / `read_file` / `rm` 等事件。
+- 前端通过 HTTP 访问「设备 → 目录 → 文件」的虚拟结构，网关将请求转为对对应设备的 `read_dir` / `read_file` / `rm` 等事件。  
+- 网关定时向各设备拉取 `script_queue` 并缓存；前端定时请求 GET `/api/devices` 获取设备列表及每设备的脚本队列状态，资源浏览器页展示「运行中脚本 + 已运行时间」与排队列表。
 
 ---
 
@@ -170,7 +175,8 @@ Base 示例：`http://localhost:3000`。路径统一为虚拟路径：`/{device_
 
 | 接口 | Method | Path | 说明 |
 |------|--------|------|------|
-| 设备列表 | GET | `/api/devices` | `{ devices: [{ name, connectedAt? }] }` |
+| 设备列表 | GET | `/api/devices` | `{ devices: [{ name, connectedAt?, scriptQueue?, queueUpdatedAt?, queueError? }] }`，网关定时拉取各设备 `script_queue` 并缓存，供前端轮询 |
+| 脚本队列 | GET | `/api/scripts/queue?device=` | `{ running, pending, capacity }`，单设备队列快照（可走缓存） |
 | 读目录 | GET | `/api/fs/dir?device=&path=` | `{ entries: [{ name, type }] }`，type 为 file 或 dir |
 | 读文件 | GET | `/api/fs/file?device=&path=` | 文件流，带 Content-Type / Content-Disposition |
 | 删文件 | DELETE | `/api/fs/file?device=&path=` | `{ ok: true, message: "deleted" }` |
@@ -184,7 +190,6 @@ Base 示例：`http://localhost:3000`。路径统一为虚拟路径：`/{device_
 
 - 内存泄漏
 - 网络超时
-- 执行队列
 - 客户端文件管理（脚本 / 截图）
 
 ---
