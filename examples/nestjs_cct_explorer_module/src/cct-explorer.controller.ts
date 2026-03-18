@@ -30,7 +30,7 @@ export class CctExplorerController {
     private readonly queueCache: DeviceQueueCacheService,
   ) {}
 
-  @Get('api/devices')
+  @Get('devices')
   async getDevices() {
     const devices = await this.gateway.listDevices();
     const enriched = devices.map((d) => {
@@ -45,7 +45,7 @@ export class CctExplorerController {
     return { devices: enriched };
   }
 
-  @Get('api/fs/dir')
+  @Get('fs/dir')
   async readDir(
     @Query('device') device: string,
     @Query('path') virtualPath = '',
@@ -67,7 +67,7 @@ export class CctExplorerController {
     return { entries };
   }
 
-  @Get('api/fs/file')
+  @Get('fs/file')
   async readFile(
     @Query('device') device: string,
     @Query('path') virtualPath = '',
@@ -128,7 +128,7 @@ export class CctExplorerController {
     res.send(buf);
   }
 
-  @Delete('api/fs/file')
+  @Delete('fs/file')
   async deleteFile(
     @Query('device') device: string,
     @Query('path') virtualPath = '',
@@ -150,7 +150,7 @@ export class CctExplorerController {
     return { ok: true, message: 'deleted' };
   }
 
-  @Post('api/fs/file')
+  @Post('fs/file')
   async writeFile(
     @Body('device') device: string,
     @Body('path') virtualPath = '',
@@ -179,7 +179,7 @@ export class CctExplorerController {
     return { ok: true, message: 'saved' };
   }
 
-  @Post('api/scripts/interrupt')
+  @Post('scripts/interrupt')
   async interruptScript(
     @Body('device') device: string,
     @Body('jobId') jobId: string,
@@ -206,7 +206,7 @@ export class CctExplorerController {
     return { ok: true };
   }
 
-  @Post('api/scripts/undo')
+  @Post('scripts/undo')
   async undoScript(
     @Body('device') device: string,
     @Body('jobId') jobId: string,
@@ -233,7 +233,7 @@ export class CctExplorerController {
     return { ok: true };
   }
 
-  @Get('api/scripts/queue')
+  @Get('scripts/queue')
   async getScriptQueue(@Query('device') device: string) {
     if (!this.gateway.getScriptQueue) {
       throw new HttpException(

@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/browser/',
+  base: './',
   root: 'browser-src',
   build: {
     outDir: '../dist/public/browser',
