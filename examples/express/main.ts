@@ -280,6 +280,64 @@ app.delete('/api/fs/file', (req, res) => {
         });
 });
 
+// ---------- HTTP API：撤销脚本（与 interrupt 同逻辑） ----------
+app.post('/api/scripts/undo', express.json(), (req, res) => {
+    const device = req.body?.device as string;
+    const jobId = req.body?.jobId as string;
+    if (!device || !jobId) {
+        return res.status(400).json({ code: '400', message: '缺少 device 或 jobId' });
+    }
+    const meta = deviceNameToSocket.get(device);
+    if (!meta) {
+        return res.status(404).json({ code: '404', message: '设备未连接' });
+    }
+    emitWithAck<{ ok: boolean; reason?: string }>(meta.socket, 'undo_script', {
+        payload: { jobId },
+    })
+        .then((result) => {
+            if (result.ok) {
+                res.json({ ok: true });
+            } else {
+                res.status(400).json({ code: '400', message: result.reason || '撤销失败' });
+            }
+        })
+        .catch((err) => {
+            res.status(500).json({
+                code: '500',
+                message: err?.message || '撤销失败',
+            });
+        });
+});
+
+// ---------- HTTP API：中断脚本 ----------
+app.post('/api/scripts/interrupt', express.json(), (req, res) => {
+    const device = req.body?.device as string;
+    const jobId = req.body?.jobId as string;
+    if (!device || !jobId) {
+        return res.status(400).json({ code: '400', message: '缺少 device 或 jobId' });
+    }
+    const meta = deviceNameToSocket.get(device);
+    if (!meta) {
+        return res.status(404).json({ code: '404', message: '设备未连接' });
+    }
+    emitWithAck<{ ok: boolean; reason?: string }>(meta.socket, 'interrupt_script', {
+        payload: { jobId },
+    })
+        .then((result) => {
+            if (result.ok) {
+                res.json({ ok: true });
+            } else {
+                res.status(400).json({ code: '400', message: result.reason || '取消失败' });
+            }
+        })
+        .catch((err) => {
+            res.status(500).json({
+                code: '500',
+                message: err?.message || '取消失败',
+            });
+        });
+});
+
 // ---------- HTTP API：脚本队列 ----------
 app.get('/api/scripts/queue', (req, res) => {
     const device = req.query.device as string;
@@ -329,30 +387,30 @@ io.on('connection', (socket) => {
         console.log('device disconnected:', deviceName, reason);
     });
 
-    // for(let i = 0; i < 10; i++) {
-    //     setTimeout(() => {
-    //         socket.emit('exec_local_script', {
-    //             payload: {
-    //                 filename: 'queue.cjs',
-    //             },
-    //         }, res => {
-    //             console.log('res', res)
-    //         });
-    //     }, i * 1000);
-    // }
+    for(let i = 0; i < 10; i++) {
+        setTimeout(() => {
+            socket.emit('exec_local_script', {
+                payload: {
+                    filename: 'queue.cjs',
+                },
+            }, res => {
+                console.log('res', res)
+            });
+        }, i * 1000);
+    }
 
-    setTimeout(() => {
-        socket.emit('exec_local_script', {
-            payload: {
-                filename: 'test1.cjs',
-                params: {
-                    share_code: 'hk-00700',
-                }
-            },
-        }, res => {
-            console.log('res', res)
-        });
-    }, 5000);
+    // setTimeout(() => {
+    //     socket.emit('exec_local_script', {
+    //         payload: {
+    //             filename: 'test1.cjs',
+    //             params: {
+    //                 share_code: 'hk-00700',
+    //             }
+    //         },
+    //     }, res => {
+    //         console.log('res', res)
+    //     });
+    // }, 5000);
 
 });
 

@@ -109,8 +109,10 @@ type ReturnMessageType<T = any> = { code: string; payload: T }
 | `exec_local_script` | 执行 `local_scripts` 下脚本，CJS 运行可 `require()`，走脚本队列 | `{ filename, params? }`，如 `{ filename: "task1.cjs", params: { share_code: "hk-00700" } }` |
 | `exec_remote_script` | 执行下发的脚本字符串（类 CJS 环境，可 `require`），走脚本队列 | `{ raw: Buffer, params? }` |
 | `script_queue` | 查询当前设备脚本队列快照（网关轮询或按需拉取） | `{}`，回调返回 `{ running, pending, capacity }` |
+| `interrupt_script` | 中断脚本：排队中则移除，运行中则 terminate Worker，队列会自动执行下一任务 | `{ jobId }`，回调返回 `{ ok: boolean, reason?: string }` |
+| `undo_script` | 撤销脚本：与 `interrupt_script` 同逻辑，用于排队任务撤销 | `{ jobId }`，回调返回 `{ ok: boolean, reason?: string }` |
 
-脚本执行采用队列（默认容量 10）：请求会立即返回 `executing` / `queued` / `overflow`，实际在队列中顺序执行。脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting`、`params`（server 下发的可选参数）。资源浏览器中，鼠标悬停任务可查看 params。
+脚本执行采用队列（默认容量 10）：请求会立即返回 `executing` / `queued` / `overflow`，实际在队列中顺序执行。脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting`、`params`（server 下发的可选参数）。资源浏览器中，鼠标悬停任务可查看 params。可通过 `interrupt_script` / `undo_script` 中断运行中或撤销排队中的任务。下发脚本时返回执行 id，网关可据此下发取消任务。
 
 **示例：exec_local_script**
 
@@ -180,6 +182,8 @@ Base 示例：`http://localhost:3000`。路径统一为虚拟路径：`/{device_
 |------|--------|------|------|
 | 设备列表 | GET | `/api/devices` | `{ devices: [{ name, connectedAt?, scriptQueue?, queueUpdatedAt?, queueError? }] }`，网关定时拉取各设备 `script_queue` 并缓存，供前端轮询 |
 | 脚本队列 | GET | `/api/scripts/queue?device=` | `{ running, pending, capacity }`，单设备队列快照（可走缓存） |
+| 中断脚本 | POST | `/api/scripts/interrupt` | Body: `{ device, jobId }`，转设备 `interrupt_script`，返回 `{ ok: boolean }` |
+| 撤销脚本 | POST | `/api/scripts/undo` | Body: `{ device, jobId }`，转设备 `undo_script`，返回 `{ ok: boolean }` |
 | 读目录 | GET | `/api/fs/dir?device=&path=` | `{ entries: [{ name, type }] }`，type 为 file 或 dir |
 | 读文件 | GET | `/api/fs/file?device=&path=` | 文件流，带 Content-Type / Content-Disposition |
 | 删文件 | DELETE | `/api/fs/file?device=&path=` | `{ ok: true, message: "deleted" }` |

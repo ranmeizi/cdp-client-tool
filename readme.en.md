@@ -64,10 +64,12 @@ Default: Socket.IO. Message types: `SendMessageType<T> = { payload: T }`, `Retur
 
 **File system**: `set_file`, `read_dir`, `read_file`, `rm`, `is_file_exist`.
 
-**Script execution**: `exec_local_script` (queue), `exec_remote_script` (queue), `script_queue` (returns `{ running, pending, capacity }`). Payload supports optional `params` for passing arguments to scripts. Queue capacity 10; responses: `executing` / `queued` / `overflow`. Entry: `module.exports = async function capture(ctx) { ... }`.
+**Script execution**: `exec_local_script` (queue), `exec_remote_script` (queue), `script_queue` (returns `{ running, pending, capacity }`), `interrupt_script`, `undo_script`. Payload supports optional `params` for passing arguments to scripts. Queue capacity 10; responses: `executing` / `queued` / `overflow`. Entry: `module.exports = async function capture(ctx) { ... }`.
 
 - `exec_local_script`: `{ filename, params? }`
 - `exec_remote_script`: `{ raw: Buffer, params? }`
+- `interrupt_script`: `{ jobId }` — interrupt running or remove queued job; callback `{ ok, reason? }`
+- `undo_script`: `{ jobId }` — same as `interrupt_script` for undo semantics
 - `ctx` includes `browser`, `greeting`, `params` (optional). Resource browser shows params on hover.
 
 ---
@@ -86,6 +88,8 @@ Base: `http://localhost:3000`. Virtual paths: `/{device_name}/local_scripts/...`
 |-----|--------|------|-------------|
 | Device list | GET | `/api/devices` | `{ devices: [{ name, connectedAt?, scriptQueue?, queueUpdatedAt?, queueError? }] }`; gateway caches per-device `script_queue` for front-end polling |
 | Script queue | GET | `/api/scripts/queue?device=` | `{ running, pending, capacity }`; single-device snapshot (may use cache) |
+| Interrupt script | POST | `/api/scripts/interrupt` | Body `{ device, jobId }`; forwards to device `interrupt_script`; returns `{ ok: boolean }` |
+| Undo script | POST | `/api/scripts/undo` | Body `{ device, jobId }`; forwards to device `undo_script`; returns `{ ok: boolean }` |
 | Read dir | GET | `/api/fs/dir?device=&path=` | `{ entries: [{ name, type }] }`, type file or dir |
 | Read file | GET | `/api/fs/file?device=&path=` | File stream with Content-Type / Content-Disposition |
 | Delete file | DELETE | `/api/fs/file?device=&path=` | `{ ok: true, message: "deleted" }` |
