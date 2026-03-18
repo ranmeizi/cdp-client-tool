@@ -1,4 +1,5 @@
-const API_BASE = ''
+// 相对路径：页面在 /browser 或 /xxx/browser，API 在同级，用 ../ 回退一级
+const API_BASE = '../'
 
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -23,17 +24,17 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getDevices(): Promise<{ devices: import('../types').Device[] }> {
-  return fetchJSON(`${API_BASE}/api/devices`)
+  return fetchJSON(`${API_BASE}devices`)
 }
 
 export async function getDir(device: string, path: string): Promise<{ entries: import('../types').DirEntry[] }> {
   const params = new URLSearchParams({ device, path })
-  return fetchJSON(`${API_BASE}/api/fs/dir?${params}`)
+  return fetchJSON(`${API_BASE}fs/dir?${params}`)
 }
 
 export async function deleteFile(device: string, path: string): Promise<{ ok: boolean }> {
   const params = new URLSearchParams({ device, path })
-  const res = await fetch(`${API_BASE}/api/fs/file?${params}`, { method: 'DELETE' })
+  const res = await fetch(`${API_BASE}fs/file?${params}`, { method: 'DELETE' })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data?.message || res.statusText)
@@ -42,14 +43,14 @@ export async function deleteFile(device: string, path: string): Promise<{ ok: bo
 }
 
 export async function interruptScript(device: string, jobId: string): Promise<{ ok: boolean }> {
-  return fetchJSON(`${API_BASE}/api/scripts/interrupt`, {
+  return fetchJSON(`${API_BASE}scripts/interrupt`, {
     method: 'POST',
     body: JSON.stringify({ device, jobId }),
   })
 }
 
 export async function undoScript(device: string, jobId: string): Promise<{ ok: boolean }> {
-  return fetchJSON(`${API_BASE}/api/scripts/undo`, {
+  return fetchJSON(`${API_BASE}scripts/undo`, {
     method: 'POST',
     body: JSON.stringify({ device, jobId }),
   })
@@ -57,5 +58,5 @@ export async function undoScript(device: string, jobId: string): Promise<{ ok: b
 
 export function getFileUrl(device: string, path: string): string {
   const params = new URLSearchParams({ device, path })
-  return `${API_BASE}/api/fs/file?${params}`
+  return `${API_BASE}fs/file?${params}`
 }

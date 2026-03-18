@@ -27,28 +27,28 @@ import { SocketIoDeviceGateway } from './socket-io-device.gateway'; // 你的实
     CctExplorerModule.forRoot({
       deviceGatewayClass: SocketIoDeviceGateway, // 必填
       pathPrefix: '', // 可选，例如 'cct' 时需配合挂载路径
-      scriptQueuePollIntervalMs: 1000, // 可选，默认 1000。模块内定时向所有设备拉取 script_queue 并缓存，GET api/devices 会带上 scriptQueue/queueUpdatedAt/queueError；设为 0 则关闭轮询
+      scriptQueuePollIntervalMs: 1000, // 可选，默认 1000。模块内定时向所有设备拉取 script_queue 并缓存，GET devices 会带上 scriptQueue/queueUpdatedAt/queueError；设为 0 则关闭轮询
     }),
   ],
 })
 export class AppModule {}
 ```
 
-3. 若使用全局前缀（如 `setGlobalPrefix('cct')`），则访问 `http://localhost:3000/cct/browser`，页面内 API 使用相对路径，会自动请求 `/cct/api/*`。
+3. 若使用全局前缀（如 `setGlobalPrefix('cct')`），则访问 `http://localhost:3000/cct/browser`，页面内 API 使用相对路径，会自动请求 `/cct/devices`、`/cct/fs/*` 等。
 
 ## 路由
 
 | 路径 | 方法 | 说明 |
 |------|------|------|
 | `/browser`、`/browser/` | GET | 资源浏览器单页（Vite + React 构建，由 ServeStaticModule 提供） |
-| `/api/devices` | GET | 设备列表。当 `scriptQueuePollIntervalMs > 0` 且网关实现 `getScriptQueue` 时，每个设备会附带 `scriptQueue`、`queueUpdatedAt`、`queueError`（模块内定时轮询各设备并缓存） |
-| `/api/scripts/queue` | GET | 单设备脚本队列：`?device=设备名`，返回 `{ running, pending, capacity }`（有缓存时优先返回缓存，需网关实现 `getScriptQueue`） |
-| `/api/scripts/interrupt` | POST | 中断运行中脚本：`{ device, jobId }`，需网关实现 `interruptScript` |
-| `/api/scripts/undo` | POST | 撤销排队/运行中任务：`{ device, jobId }`，需网关实现 `undoScript` |
-| `/api/fs/dir` | GET | 读目录 |
-| `/api/fs/file` | GET | 读文件 |
-| `/api/fs/file` | DELETE | 删文件 |
-| `/api/fs/file` | POST | 写文件（需网关实现 writeFile） |
+| `/devices` | GET | 设备列表。当 `scriptQueuePollIntervalMs > 0` 且网关实现 `getScriptQueue` 时，每个设备会附带 `scriptQueue`、`queueUpdatedAt`、`queueError`（模块内定时轮询各设备并缓存） |
+| `/scripts/queue` | GET | 单设备脚本队列：`?device=设备名`，返回 `{ running, pending, capacity }`（有缓存时优先返回缓存，需网关实现 `getScriptQueue`） |
+| `/scripts/interrupt` | POST | 中断运行中脚本：`{ device, jobId }`，需网关实现 `interruptScript` |
+| `/scripts/undo` | POST | 撤销排队/运行中任务：`{ device, jobId }`，需网关实现 `undoScript` |
+| `/fs/dir` | GET | 读目录 |
+| `/fs/file` | GET | 读文件 |
+| `/fs/file` | DELETE | 删文件 |
+| `/fs/file` | POST | 写文件（需网关实现 writeFile） |
 
 ## 依赖
 

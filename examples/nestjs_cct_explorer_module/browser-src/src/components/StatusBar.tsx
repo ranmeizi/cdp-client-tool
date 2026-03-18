@@ -19,16 +19,16 @@ export function StatusBar() {
       </div>
       <div className="flex gap-1.5">
         <span className="rounded-full border border-slate-600 bg-slate-900/90 px-1.5 py-0.5 text-[10px]">
-          GET /api/devices
+          GET /devices
         </span>
         <span className="rounded-full border border-slate-600 bg-slate-900/90 px-1.5 py-0.5 text-[10px]">
-          GET /api/fs/dir
+          GET /fs/dir
         </span>
         <span className="rounded-full border border-slate-600 bg-slate-900/90 px-1.5 py-0.5 text-[10px]">
-          GET /api/fs/file
+          GET /fs/file
         </span>
         <span className="rounded-full border border-slate-600 bg-slate-900/90 px-1.5 py-0.5 text-[10px]">
-          DELETE /api/fs/file
+          DELETE /fs/file
         </span>
       </div>
     </div>
