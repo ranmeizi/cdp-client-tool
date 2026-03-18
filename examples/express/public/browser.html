@@ -427,6 +427,34 @@
       color: var(--danger);
     }
 
+    .btn-interrupt {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(249, 115, 115, 0.5);
+      background: var(--danger-soft);
+      color: var(--danger);
+      cursor: pointer;
+    }
+
+    .btn-interrupt:hover {
+      background: rgba(249, 115, 115, 0.25);
+    }
+
+    .btn-undo {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      background: rgba(245, 158, 11, 0.12);
+      color: #f59e0b;
+      cursor: pointer;
+    }
+
+    .btn-undo:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+
     .status-bar {
       font-size: 11px;
       color: var(--text-muted);
@@ -685,6 +713,48 @@
         return jobParamsStr(job) ? ' <span style="opacity:0.7;font-size:10px;">📋 悬停查看 params</span>' : '';
       }
 
+      async function interruptScript(device, jobId) {
+        try {
+          setStatus('正在中断脚本 ' + jobId + ' …');
+          const res = await fetch('/api/scripts/interrupt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device, jobId }),
+          });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            setStatus('已中断脚本：' + jobId + '，队列下一任务将自动执行');
+            loadScriptQueue();
+          } else {
+            setStatus('中断失败：' + (data.message || res.statusText), 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          setStatus('中断失败：' + err.message, 'error');
+        }
+      }
+
+      async function undoScript(device, jobId) {
+        try {
+          setStatus('正在撤销任务 ' + jobId + ' …');
+          const res = await fetch('/api/scripts/undo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device, jobId }),
+          });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            setStatus('已撤销任务：' + jobId);
+            loadScriptQueue();
+          } else {
+            setStatus('撤销失败：' + (data.message || res.statusText), 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          setStatus('撤销失败：' + err.message, 'error');
+        }
+      }
+
       async function loadScriptQueue() {
         const device = state.currentDevice;
         const el = document.getElementById('script-queue-content');
@@ -714,14 +784,14 @@
         let html = '';
         if (running) {
           const elapsed = formatElapsed(running.startedAt);
-          html += '<div style="margin-bottom:6px;"' + jobItemAttrs(running) + '>' + jobParamsTooltip(running) + '<span style="color:var(--accent);">▶ 运行中</span> ' + jobLabel(running) + jobParamsBadge(running) + (elapsed ? ' <span style="color:var(--text-muted);">已运行 ' + elapsed + '</span>' : '') + '</div>';
+          html += '<div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"' + jobItemAttrs(running) + '>' + jobParamsTooltip(running) + '<span><span style="color:var(--accent);">▶ 运行中</span> ' + jobLabel(running) + jobParamsBadge(running) + (elapsed ? ' <span style="color:var(--text-muted);">已运行 ' + elapsed + '</span>' : '') + '</span><button class="btn-interrupt" data-action="interrupt" data-job-id="' + escapeHtml(running.id) + '" title="中断执行">中断</button></div>';
         } else {
           html += '<div style="margin-bottom:6px;color:var(--text-muted);">无运行中脚本</div>';
         }
         if (pending.length) {
           html += '<div style="color:var(--text-muted);">排队中 (' + pending.length + ')：</div>';
           pending.forEach(function (j, i) {
-            html += '<div style="padding-left:8px;"' + jobItemAttrs(j) + '>' + jobParamsTooltip(j) + (i + 1) + '. ' + jobLabel(j) + jobParamsBadge(j) + '</div>';
+            html += '<div style="padding-left:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;"' + jobItemAttrs(j) + '>' + jobParamsTooltip(j) + '<span style="flex:1;min-width:0;">' + (i + 1) + '. ' + jobLabel(j) + jobParamsBadge(j) + '</span><button class="btn-undo" data-action="undo" data-job-id="' + escapeHtml(j.id) + '" title="撤销排队">撤销</button></div>';
           });
         } else {
           html += '<div style="color:var(--text-muted);">无排队任务</div>';
@@ -1090,6 +1160,22 @@
           renderRootForDevice();
         } else {
           setStatus('请先选择设备。', 'warn');
+        }
+      });
+
+      // 脚本队列：中断 / 撤销按钮事件委托
+      document.getElementById('script-queue-content').addEventListener('click', (ev) => {
+        if (!state.currentDevice) return;
+        const btn = ev.target.closest('[data-action="interrupt"]');
+        if (btn) {
+          const jobId = btn.getAttribute('data-job-id');
+          if (jobId) interruptScript(state.currentDevice, jobId);
+          return;
+        }
+        const undoBtn = ev.target.closest('[data-action="undo"]');
+        if (undoBtn) {
+          const jobId = undoBtn.getAttribute('data-job-id');
+          if (jobId) undoScript(state.currentDevice, jobId);
         }
       });
 

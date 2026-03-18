@@ -1,6 +1,6 @@
 {
   "name": "cdp-client-tool",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "一个客户端程序，设计了一套socket.io与http接口的通信协议，可以用于控制浏览器，抓取数据等",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -18,7 +18,8 @@
     "build:nestjs": "pnpm -F @bomon/nestjs-cct-explorer build",
     "start:client": "pnpm -F client start",
     "start:express": "pnpm -F express-example start",
-    "start:nestjs": "pnpm -F nestjs-example start"
+    "start:nestjs": "pnpm -F nestjs-example start",
+     "test:process": "ts-node src/test_process.ts"
   },
   "files": [
     "dist",

@@ -2,6 +2,9 @@ import { ManagerOptions, SocketOptions } from "socket.io-client"
 import { Client } from "./Client"
 import * as path from "node:path"
 import { ensureDir } from "./utils"
+import * as fs from 'node:fs'
+import { Runner } from "./core/Runner"
+import { WsHandler } from "./core/WsHandler"
 
 export enum EVENTS {
     IS_FILE_EXIST = "is_file_exist",
@@ -12,6 +15,32 @@ export enum EVENTS {
     EXEC_LOCAL_SCRIPT = "exec_local_script", // 执行本地脚本
     EXEC_REMOTE_SCRIPT = "exec_remote_script", // 执行远程脚本
     SCRIPT_QUEUE = "script_queue", // 查询脚本执行队列
+    INTERRUPT_SCRIPT = "interrupt_script", // 中断脚本执行
+    UNDO_SCRIPT = "undo_script", // 撤销脚本执行
+}
+
+export type Context = {
+    runner: Runner
+    ws: WsHandler
+}
+
+export type ScriptJob = {
+    id: string
+    // 本地代码 | 远程代码
+    type: 'local' | 'remote'
+    // 文件名 如果传了 filename 和 script 则先保存 script 再按 local 方式执行
+    filename?: string
+    // 脚本字符串
+    script?: string
+    params?: any
+}
+
+export enum PushJobResult {
+    SUCCESS = 'success',
+    SUCCESS_IN_QUEUE = 'success_in_queue',
+    FAILED = 'failed',
+    QUEUE_FULL = 'queue_full',
+    FILE_SAVE_FAILED = 'file_save_failed',
 }
 
 export type GatewayConfig = {
@@ -22,10 +51,11 @@ export type GatewayConfig = {
 }
 
 export type ClientOptions = {
-    deviceName: string // 设备名
-    onInit?: (ctx: Client['ctx']) => void
-    onError?: (error: any) => void
-    gateways: GatewayConfig[]
+    capacity?: number;
+    timeout?: number;// 超时时间
+    minInterval?: number;// 最小间隔时间
+    gateways: GatewayConfig[]; // 网关配置
+    deviceName?: string; // 设备名称
 }
 
 const ALLOWED_DIRS = ['local_scripts', 'screenshots'] as const
@@ -54,4 +84,11 @@ export function getSctiptFilePath(filename: string) {
 export function getScreenshotFilePath(filename: string) {
     const pathStr = path.resolve(process.cwd(), 'screenshots', filename)
 
+}
+
+// 存脚本
+export async function saveScriptFile(filename: string, script: string) {
+    await ensureDir(path.resolve(process.cwd(), 'local_scripts'))
+
+    fs.writeFileSync(path.resolve(process.cwd(), 'local_scripts', filename), script);
 }
