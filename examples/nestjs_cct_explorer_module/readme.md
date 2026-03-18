@@ -40,9 +40,11 @@ export class AppModule {}
 
 | 路径 | 方法 | 说明 |
 |------|------|------|
-| `/browser` | GET | 资源浏览器单页（设备列表、目录树、文件操作、脚本队列面板） |
+| `/browser`、`/browser/` | GET | 资源浏览器单页（Vite + React 构建，由 ServeStaticModule 提供） |
 | `/api/devices` | GET | 设备列表。当 `scriptQueuePollIntervalMs > 0` 且网关实现 `getScriptQueue` 时，每个设备会附带 `scriptQueue`、`queueUpdatedAt`、`queueError`（模块内定时轮询各设备并缓存） |
 | `/api/scripts/queue` | GET | 单设备脚本队列：`?device=设备名`，返回 `{ running, pending, capacity }`（有缓存时优先返回缓存，需网关实现 `getScriptQueue`） |
+| `/api/scripts/interrupt` | POST | 中断运行中脚本：`{ device, jobId }`，需网关实现 `interruptScript` |
+| `/api/scripts/undo` | POST | 撤销排队/运行中任务：`{ device, jobId }`，需网关实现 `undoScript` |
 | `/api/fs/dir` | GET | 读目录 |
 | `/api/fs/file` | GET | 读文件 |
 | `/api/fs/file` | DELETE | 删文件 |
@@ -50,4 +52,8 @@ export class AppModule {}
 
 ## 依赖
 
-需实现并注入 `DeviceGateway`（见包内 `device-gateway.interface.ts`）。若需资源浏览器中的「脚本队列」展示，需实现可选方法 `getScriptQueue(device: string): Promise<ScriptQueueSnapshot>`。
+需实现并注入 `DeviceGateway`（见包内 `device-gateway.interface.ts`）。若需资源浏览器中的「脚本队列」展示，需实现可选方法 `getScriptQueue(device: string): Promise<ScriptQueueSnapshot>`。若需「中断」「撤销」按钮，需实现 `interruptScript` 与 `undoScript`。
+
+## 构建
+
+构建时会执行 `tsc` 和 `vite build`，将 React 前端输出到 `dist/public/browser/`。发布包时需包含 `dist` 目录。

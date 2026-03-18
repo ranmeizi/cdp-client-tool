@@ -33,6 +33,26 @@ export class SocketIoDeviceGateway implements DeviceGateway {
         this.unregisterDevice(socket.id);
         console.log('device disconnected:', deviceName, reason);
       });
+
+      // 测试：设备连接后每秒下发一次 queue.cjs，共 10 次
+      // for (let i = 0; i < 5; i++) {
+      //   setTimeout(() => {
+      //     socket.emit(
+      //       'exec_local_script',
+      //       { payload: { filename: 'queue.cjs' } },
+      //       (res: unknown) => {
+      //         console.log('exec_local_script res', res);
+      //       },
+      //     );
+      //   }, i * 1000);
+      // }
+
+      socket.emit(
+        'exec_local_script',
+        { payload: { filename: 'baidu_screenshot.cjs' } },
+        (res: unknown) => {
+          console.log('exec_local_script res', res);
+        })
     });
   }
 
@@ -128,5 +148,21 @@ export class SocketIoDeviceGateway implements DeviceGateway {
       payload: {},
     });
     return snapshot;
+  }
+
+  async interruptScript(
+    device: string,
+    jobId: string,
+  ): Promise<{ ok: boolean; reason?: string }> {
+    const socket = this.getSocket(device);
+    return this.emitWithAck(socket, 'interrupt_script', { payload: { jobId } });
+  }
+
+  async undoScript(
+    device: string,
+    jobId: string,
+  ): Promise<{ ok: boolean; reason?: string }> {
+    const socket = this.getSocket(device);
+    return this.emitWithAck(socket, 'undo_script', { payload: { jobId } });
   }
 }

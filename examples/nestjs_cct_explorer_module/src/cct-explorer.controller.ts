@@ -11,7 +11,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { join } from 'node:path';
 import { DeviceGateway } from './device-gateway.interface';
 import {
   DEVICE_GATEWAY_TOKEN,
@@ -30,12 +29,6 @@ export class CctExplorerController {
     private readonly options: CctExplorerModuleOptions,
     private readonly queueCache: DeviceQueueCacheService,
   ) {}
-
-  @Get('browser')
-  async renderBrowser(@Res() res: Response) {
-    const filePath = join(__dirname, 'public', 'browser.html');
-    res.sendFile(filePath);
-  }
 
   @Get('api/devices')
   async getDevices() {
@@ -184,6 +177,60 @@ export class CctExplorerController {
     }
     await this.gateway.writeFile(device, parsed.devicePath, content ?? '');
     return { ok: true, message: 'saved' };
+  }
+
+  @Post('api/scripts/interrupt')
+  async interruptScript(
+    @Body('device') device: string,
+    @Body('jobId') jobId: string,
+  ) {
+    if (!device || !jobId) {
+      throw new HttpException(
+        { code: '400', message: '缺少 device 或 jobId' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!this.gateway.interruptScript) {
+      throw new HttpException(
+        { code: '400', message: '当前网关未实现中断能力' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const result = await this.gateway.interruptScript(device, jobId);
+    if (!result.ok) {
+      throw new HttpException(
+        { code: '400', message: result.reason || '中断失败' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return { ok: true };
+  }
+
+  @Post('api/scripts/undo')
+  async undoScript(
+    @Body('device') device: string,
+    @Body('jobId') jobId: string,
+  ) {
+    if (!device || !jobId) {
+      throw new HttpException(
+        { code: '400', message: '缺少 device 或 jobId' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!this.gateway.undoScript) {
+      throw new HttpException(
+        { code: '400', message: '当前网关未实现撤销能力' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const result = await this.gateway.undoScript(device, jobId);
+    if (!result.ok) {
+      throw new HttpException(
+        { code: '400', message: result.reason || '撤销失败' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return { ok: true };
   }
 
   @Get('api/scripts/queue')
