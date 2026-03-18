@@ -1,14 +1,7 @@
-function sleep(timeout){
-    return new Promise(resolve => setTimeout(resolve, timeout))
-}
+const { launchBrowser, sleep } = require('cdp-client-tool')
 
-/**
- * @type {import('cdp-client-tool').excuteFn}
- */
-async function capture(ctx) {
-    const browser = ctx.browser
-
-    console.log("I'm running", ctx)
+async function main() {
+    const browser = await launchBrowser()
 
     // 我要截屏
 
@@ -18,14 +11,14 @@ async function capture(ctx) {
     try {
         await page.screenshot({ path: `screenshots/screenshot_${Date.now()}.png` })
         await page.close()
+        console.log("screenshot success")
     } catch (error) {
         console.log("screenshot error", error)
+    } finally {
+        await browser.disconnect()
     }
 
-
-    console.log("screenshot success")
-
-    return ctx.greeting
+    return true
 }
 
-module.exports = capture
+main()      

@@ -6,6 +6,7 @@ import { Client, EVENTS } from "cdp-client-tool";
 
 const client = new Client({
   deviceName: "example-device",
+  
   gateways: [
     {
       name: "local",

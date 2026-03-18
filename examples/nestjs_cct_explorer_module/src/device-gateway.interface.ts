@@ -26,6 +26,11 @@ export interface ScriptQueueSnapshot {
   capacity: number;
 }
 
+export interface InterruptResult {
+  ok: boolean;
+  reason?: string;
+}
+
 export interface DeviceGateway {
   listDevices(): Promise<DeviceInfo[]>;
   readDir(device: string, devicePath: string): Promise<DirEntry[]>;
@@ -33,4 +38,6 @@ export interface DeviceGateway {
   removeFile(device: string, devicePath: string): Promise<void>;
   writeFile?(device: string, devicePath: string, content: Buffer | string): Promise<void>;
   getScriptQueue?(device: string): Promise<ScriptQueueSnapshot>;
+  interruptScript?(device: string, jobId: string): Promise<InterruptResult>;
+  undoScript?(device: string, jobId: string): Promise<InterruptResult>;
 }

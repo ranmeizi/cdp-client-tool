@@ -1,14 +1,15 @@
-import axios from "axios";
-import puppeteer from "puppeteer-core";
 import { mkdir, stat } from 'node:fs/promises';
+import fs from 'node:fs'
+import axios from 'axios';
+import puppeteer from 'puppeteer-core';
 
 /**
  * 异步等待
  */
 export function sleep(timeout: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, timeout);
-  });
+    return new Promise((resolve) => {
+        setTimeout(resolve, timeout);
+    });
 }
 
 export async function launchBrowser() {
@@ -29,20 +30,21 @@ export async function launchBrowser() {
  * @param create 不存在时是否创建，默认为 true
  */
 export async function ensureDir(dirPath: string, create: boolean = true): Promise<void> {
-  try {
-    const stats = await stat(dirPath);
-    if (!stats.isDirectory()) {
-      throw new Error(`${dirPath} 存在但不是目录`);
-    }
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
-      if (create) {
-        await mkdir(dirPath, { recursive: true });
-      } else {
-        throw new Error(`目录 ${dirPath} 不存在`);
+    try {
+      const stats = await stat(dirPath);
+      if (!stats.isDirectory()) {
+        throw new Error(`${dirPath} 存在但不是目录`);
       }
-    } else {
-      throw err;
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        if (create) {
+          await mkdir(dirPath, { recursive: true });
+        } else {
+          throw new Error(`目录 ${dirPath} 不存在`);
+        }
+      } else {
+        throw err;
+      }
     }
   }
-}
+  
