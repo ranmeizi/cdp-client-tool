@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SocketIoDeviceGateway } from './socket-io-device.gateway';
+import { ScriptActionBizService } from './script-action.biz.service';
 import { Server } from 'socket.io';
 
 async function bootstrap() {
@@ -10,7 +11,16 @@ async function bootstrap() {
     cors: { origin: '*' },
   });
   const gateway = app.get(SocketIoDeviceGateway);
+  const bizService = app.get(ScriptActionBizService);
   gateway.setIo(io);
+  gateway.onDeviceConnected(async (deviceName) => {
+    try {
+      const result = await bizService.runBaiduScreenshotAction(deviceName);
+      console.log('biz action result:', deviceName, result);
+    } catch (error) {
+      console.error('biz action failed:', deviceName, error);
+    }
+  });
 
   const port = 3000;
   await app.listen(port);

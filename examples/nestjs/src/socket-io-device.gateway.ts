@@ -5,7 +5,9 @@ import type {
   DeviceGateway,
   DeviceInfo,
   DirEntry,
-  ScriptQueueSnapshot,
+  ReportResultMessage,
+  ScriptDispatchAck,
+  ScriptQueueSnapshot
 } from '@bomon/nestjs-cct-explorer';
 
 const SOCKET_ACK_TIMEOUT_MS = 15000;
@@ -13,6 +15,10 @@ const SOCKET_ACK_TIMEOUT_MS = 15000;
 @Injectable()
 export class SocketIoDeviceGateway implements DeviceGateway {
   private io: Server | null = null;
+  private readonly connectedListeners = new Set<(device: string) => void>();
+  private readonly reportResultListeners = new Set<
+    (device: string, message: ReportResultMessage) => void
+  >();
   private readonly deviceNameToSocket = new Map<
     string,
     { socket: Socket; connectedAt: string }
@@ -21,17 +27,27 @@ export class SocketIoDeviceGateway implements DeviceGateway {
 
   setIo(io: Server): void {
     this.io = io;
-    io.on('connection', (socket: Socket) => {
+    io.on('connection', async (socket: Socket) => {
       const deviceName =
         (socket.handshake.query?.deviceName as string)?.trim() ||
         (socket.handshake.auth as { deviceName?: string })?.deviceName ||
         socket.id;
       this.registerDevice(deviceName, socket);
       console.log('device connected:', deviceName, socket.id);
+      for (const listener of this.connectedListeners) {
+        listener(deviceName);
+      }
 
       socket.on('disconnect', (reason: string) => {
         this.unregisterDevice(socket.id);
         console.log('device disconnected:', deviceName, reason);
+      });
+
+      socket.on('report_result', (message: ReportResultMessage) => {
+        console.log('[SocketIoDeviceGateway] report_result', { deviceName, message });
+        for (const listener of this.reportResultListeners) {
+          listener(deviceName, message);
+        }
       });
 
       // 测试：设备连接后每秒下发一次 queue.cjs，共 10 次
@@ -47,12 +63,15 @@ export class SocketIoDeviceGateway implements DeviceGateway {
       //   }, i * 1000);
       // }
 
-      socket.emit(
-        'exec_local_script',
-        { payload: { filename: 'baidu_screenshot.cjs' } },
-        (res: unknown) => {
-          console.log('exec_local_script res', res);
-        })
+
+
+      // socket.emit(
+      //   'exec_local_script',
+      //   { payload: { filename: 'baidu_screenshot.cjs' } },
+      //   (res: unknown) => {
+      //     console.log('exec_local_script res', res);
+      //   })
+
     });
   }
 
@@ -164,5 +183,39 @@ export class SocketIoDeviceGateway implements DeviceGateway {
   ): Promise<{ ok: boolean; reason?: string }> {
     const socket = this.getSocket(device);
     return this.emitWithAck(socket, 'undo_script', { payload: { jobId } });
+  }
+
+  async execLocalScript(
+    device: string,
+    payload: { filename: string; params?: any },
+  ): Promise<ScriptDispatchAck> {
+    const socket = this.getSocket(device);
+    const ack = await this.emitWithAck<ScriptDispatchAck>(socket, 'exec_local_script', {
+      payload,
+    });
+    console.log('[SocketIoDeviceGateway] exec_local_script ack', { device, payload, ack });
+    return ack;
+  }
+
+  async execRemoteScript(
+    device: string,
+    payload: { raw: Buffer | string; params?: any },
+  ): Promise<ScriptDispatchAck> {
+    const socket = this.getSocket(device);
+    return this.emitWithAck<ScriptDispatchAck>(socket, 'exec_remote_script', {
+      payload,
+    });
+  }
+
+  onReportResult(
+    listener: (device: string, message: ReportResultMessage) => void,
+  ): () => void {
+    this.reportResultListeners.add(listener);
+    return () => this.reportResultListeners.delete(listener);
+  }
+
+  onDeviceConnected(listener: (device: string) => void): () => void {
+    this.connectedListeners.add(listener);
+    return () => this.connectedListeners.delete(listener);
   }
 }

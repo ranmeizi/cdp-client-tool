@@ -55,3 +55,15 @@ export class AppModule {}
 ## Dependencies
 
 Implement and inject `DeviceGateway` (see `device-gateway.interface.ts` in the package). For the script queue panel in the resource browser, implement the optional `getScriptQueue(device: string): Promise<ScriptQueueSnapshot>`.
+
+## Action service (for external callers)
+
+The module exports `CctActionsService`, which wraps "dispatch script + wait for `report_result`" into awaitable actions:
+
+- `runLocalScriptAction(device, { filename, params? }, { timeoutMs? })`
+- `runRemoteScriptAction(device, { raw, params? }, { timeoutMs? })`
+
+To use it, your `DeviceGateway` should also implement these optional methods:
+
+- `execLocalScript` / `execRemoteScript` (return `{ status, jobId }`)
+- `onReportResult` (subscribe to client `report_result` events)

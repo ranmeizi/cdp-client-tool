@@ -54,6 +54,18 @@ export class AppModule {}
 
 需实现并注入 `DeviceGateway`（见包内 `device-gateway.interface.ts`）。若需资源浏览器中的「脚本队列」展示，需实现可选方法 `getScriptQueue(device: string): Promise<ScriptQueueSnapshot>`。若需「中断」「撤销」按钮，需实现 `interruptScript` 与 `undoScript`。
 
+## Action 封装服务（对外调用）
+
+模块提供 `CctActionsService`，用于将「下发脚本 + 等待 `report_result` 回报」封装成可 `await` 的 Action：
+
+- `runLocalScriptAction(device, { filename, params? }, { timeoutMs? })`
+- `runRemoteScriptAction(device, { raw, params? }, { timeoutMs? })`
+
+要启用该能力，你的 `DeviceGateway` 需额外实现可选方法：
+
+- `execLocalScript` / `execRemoteScript`（返回 `{ status, jobId }`）
+- `onReportResult`（订阅客户端 `report_result` 事件）
+
 ## 构建
 
 构建时会执行 `tsc` 和 `vite build`，将 React 前端输出到 `dist/public/browser/`。发布包时需包含 `dist` 目录。

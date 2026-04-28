@@ -1,4 +1,4 @@
-const { launchBrowser, sleep } = require('cdp-client-tool')
+const { launchBrowser, sleep, reportResult } = require('cdp-client-tool')
 
 async function main() {
     const browser = await launchBrowser()
@@ -18,7 +18,21 @@ async function main() {
         await browser.disconnect()
     }
 
-    return true
+    return {
+        code: 200,
+        message: 'screenshot success',
+        data: {
+            result: true,
+            screenshot: `screenshots/screenshot_${Date.now()}.png`,
+        }
+    }
 }
-
-main()      
+main().then(result => {
+    reportResult(result)
+}).catch(error => {
+    reportResult({
+        code: 500,
+        message: error.message,
+        data: null
+    })
+})

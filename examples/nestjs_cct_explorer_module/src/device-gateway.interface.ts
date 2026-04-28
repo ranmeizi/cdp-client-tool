@@ -31,6 +31,20 @@ export interface InterruptResult {
   reason?: string;
 }
 
+export interface ScriptDispatchAck {
+  status: 'executing' | 'queued' | 'overflow';
+  jobId?: string;
+  position?: number;
+  reason?: string;
+}
+
+export interface ReportResultMessage {
+  payload?: {
+    jobId?: string;
+    result?: unknown;
+  };
+}
+
 export interface DeviceGateway {
   listDevices(): Promise<DeviceInfo[]>;
   readDir(device: string, devicePath: string): Promise<DirEntry[]>;
@@ -40,4 +54,15 @@ export interface DeviceGateway {
   getScriptQueue?(device: string): Promise<ScriptQueueSnapshot>;
   interruptScript?(device: string, jobId: string): Promise<InterruptResult>;
   undoScript?(device: string, jobId: string): Promise<InterruptResult>;
+  execLocalScript?(
+    device: string,
+    payload: { filename: string; params?: any },
+  ): Promise<ScriptDispatchAck>;
+  execRemoteScript?(
+    device: string,
+    payload: { raw: Buffer | string; params?: any },
+  ): Promise<ScriptDispatchAck>;
+  onReportResult?(
+    listener: (device: string, message: ReportResultMessage) => void,
+  ): () => void;
 }
