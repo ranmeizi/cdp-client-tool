@@ -26,16 +26,18 @@ export class Client {
     }
 
     constructor(options: ClientOptions ) {
-        const runner = new Runner(this.deps, {
+        const runner = new Runner(this, {
             capacity: options.capacity ?? defaultOptions.capacity,
             minInterval: options.minInterval ?? defaultOptions.minInterval,
             timeout: options.timeout ?? defaultOptions.timeout,
         });
         this.runner = runner; // 先赋值，否则 WsHandler 拿到的 ctx.runner 为 undefined
-        const ws = new WsHandler(this.deps, {
+        console.log('看顺序 1，runner 赋值完',this.deps);
+        const ws = new WsHandler(this, {
             gateways: options.gateways,
             deviceName: options.deviceName,
         });
         this.ws = ws;
+        console.log('看顺序 2，ws 赋值完',this.deps);
     }
 }

@@ -1,4 +1,4 @@
-import { ManagerOptions, SocketOptions } from "socket.io-client"
+import { ManagerOptions, Socket, SocketOptions } from "socket.io-client"
 import { Client } from "./Client"
 import * as path from "node:path"
 import { ensureDir } from "./utils"
@@ -17,6 +17,9 @@ export enum EVENTS {
     SCRIPT_QUEUE = "script_queue", // 查询脚本执行队列
     INTERRUPT_SCRIPT = "interrupt_script", // 中断脚本执行
     UNDO_SCRIPT = "undo_script", // 撤销脚本执行
+
+    // 客户端发送事件 ⬇
+    REPORT_RESULT = "report_result", // 报告结果
 }
 
 export type Context = {
@@ -33,6 +36,7 @@ export type ScriptJob = {
     // 脚本字符串
     script?: string
     params?: any
+    gatewayName?: string // 网关名称 用于获取socket引用
 }
 
 export enum PushJobResult {

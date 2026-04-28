@@ -387,6 +387,10 @@ io.on('connection', (socket) => {
         console.log('device disconnected:', deviceName, reason);
     });
 
+    socket.on('report_result', (message) => {
+        console.log('report result:', message);
+    });
+
     for(let i = 0; i < 10; i++) {
         setTimeout(() => {
             socket.emit('exec_local_script', {
@@ -394,6 +398,7 @@ io.on('connection', (socket) => {
                     filename: 'queue.cjs',
                 },
             }, res => {
+                // 如果成功入队，那么需要监听报告结果
                 console.log('res', res)
             });
         }, i * 1000);
@@ -406,7 +411,8 @@ io.on('connection', (socket) => {
     //             params: {
     //                 share_code: 'hk-00700',
     //             }
-    //         },
+    //    
+    //      },
     //     }, res => {
     //         console.log('res', res)
     //     });

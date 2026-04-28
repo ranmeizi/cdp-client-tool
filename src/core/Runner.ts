@@ -3,6 +3,7 @@ import { Worker } from 'node:worker_threads'
 import { ClientOptions, Context, PushJobResult, saveScriptFile, ScriptJob } from 'src/common';
 import { ScriptWorker } from './ScriptWorker';
 import { sleep } from 'src/utils';
+import { Client } from 'src/Client';
 
 type RunnerOptions = {
     capacity: number
@@ -20,10 +21,14 @@ export class Runner {
     private worker?: ScriptWorker
 
     constructor(
-        private readonly ctx: Context,
+        private readonly client: Client,
         private readonly options: RunnerOptions,
     ) {
         this.queue = [];
+    }
+
+    get ctx() {
+        return this.client.deps;
     }
 
     private nextJobId() {
@@ -90,9 +95,12 @@ export class Runner {
                 await sleep(this.options.minInterval - (Date.now() - this.last_finished_at));
             }
 
+            console.log('看顺序 3',this.ctx);
+
             this.worker = new ScriptWorker({
                 job: jobToRun,
                 timeout: this.options.timeout,
+                sockets: this.ctx.ws.sockets
             });
 
             try {

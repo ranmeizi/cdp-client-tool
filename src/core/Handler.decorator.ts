@@ -1,3 +1,4 @@
+import { Socket } from "socket.io-client";
 import { EVENTS } from "../common";
 
 /** 事件 payload 类型映射，与 EVENTS 一一对应 */
@@ -24,6 +25,7 @@ export type HandlerContext<K extends EventKey = EventKey> = {
   callback: (...args: any[]) => void;
   gateway: import("../common").GatewayConfig;
   ctx: import("../common").Context;
+  socket: Socket;
 };
 
 /** 辅助类型：根据事件名推导 Handler 参数类型 */

@@ -72,6 +72,28 @@ Default: Socket.IO. Message types: `SendMessageType<T> = { payload: T }`, `Retur
 - `undo_script`: `{ jobId }` — same as `interrupt_script` for undo semantics
 - `ctx` includes `browser`, `greeting`, `params` (optional). Resource browser shows params on hover.
 
+### Client report events (device → gateway)
+
+- `report_result`: active result reporting from client to gateway for async script completion
+- Payload: `{ jobId, result }`
+
+Use `report_result` when `exec_*` returns immediately (`queued`/`executing`) and the final output is delivered asynchronously. On the gateway side, map pending actions by `jobId` and resolve/reject when the report arrives.
+
+**Worker script example**
+
+```js
+const { sleep, reportResult } = require("cdp-client-tool");
+
+async function main() {
+  await sleep(1000);
+  reportResult({ stage: "half" }); // optional progress message
+  await sleep(1000);
+  reportResult({ ok: true, data: { price: 123.45 } }); // final result
+}
+
+main().catch((e) => reportResult({ ok: false, error: e?.message || String(e) }));
+```
+
 ---
 
 ## Architecture (gateway + resource browser)

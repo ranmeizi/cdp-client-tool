@@ -11,6 +11,7 @@ import {
     type EventKey,
 } from "./Handler.decorator";
 import { logger } from "src/logger";
+import { Client } from "src/Client";
 
 type WsHandlerOptions = {
     gateways: GatewayConfig[];
@@ -20,12 +21,19 @@ type WsHandlerOptions = {
 
 
 export class WsHandler {
+
+    public sockets: Map<string, Socket> = new Map();
+
     constructor(
-        private readonly ctx: Context,
+        private readonly client: Client,
         private readonly options: WsHandlerOptions
     ) {
         this.init();
-     }
+    }
+
+    get ctx() {
+        return this.client.deps;
+    }
 
     init() {
         this.options.onInit?.(this.ctx);
@@ -51,6 +59,8 @@ export class WsHandler {
             socket.on("error", (err) => {
                 logger.error(`[${gateway.name}]: socketio 错误`, err);
             });
+
+            this.sockets.set(gateway.name, socket);
 
             // 隐式绑定：从 @Handler 装饰器注册表自动 socket.on
             this.attachHandlers(socket, gateway);
@@ -130,7 +140,7 @@ export class WsHandler {
     }
 
     @Handler(EVENTS.EXEC_LOCAL_SCRIPT)
-    async execLocalScript({ data, callback }: HandlerContext<typeof EVENTS.EXEC_LOCAL_SCRIPT>) {
+    async execLocalScript({ data, callback, gateway }: HandlerContext<typeof EVENTS.EXEC_LOCAL_SCRIPT>) {
         try {
             const { filename, params } = data.payload;
             const base = filename.includes("/") ? filename : join("local_scripts", filename);
@@ -140,6 +150,7 @@ export class WsHandler {
                 type: "local",
                 filename: filePath,
                 params,
+                gatewayName: gateway.name,
             };
             const result = await this.ctx.runner.execJob(job);
             console.log('handler:', result);
@@ -151,7 +162,7 @@ export class WsHandler {
     }
 
     @Handler(EVENTS.EXEC_REMOTE_SCRIPT)
-    async execRemoteScript({ data, callback }: HandlerContext<typeof EVENTS.EXEC_REMOTE_SCRIPT>) {
+    async execRemoteScript({ data, callback, gateway }: HandlerContext<typeof EVENTS.EXEC_REMOTE_SCRIPT>) {
         try {
             const { raw, params } = data.payload;
             const job: ScriptJob = {
@@ -159,6 +170,7 @@ export class WsHandler {
                 type: "remote",
                 script: raw.toString("utf8"),
                 params,
+                gatewayName: gateway.name,
             };
             const result = await this.ctx.runner.execJob(job);
             callback(this.mapExecResult(result, job.id));

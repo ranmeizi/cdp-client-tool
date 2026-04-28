@@ -1,12 +1,14 @@
 import fs from 'node:fs'
 import { Worker } from 'node:worker_threads'
-import { ScriptJob } from 'src/common';
+import { Socket } from 'socket.io-client';
+import { EVENTS, ScriptJob } from 'src/common';
 import { logger } from 'src/logger';
 
 
 type ScriptWorkerOptions = {
     job: ScriptJob
-    timeout: number
+    timeout: number,
+    sockets: Map<string, Socket>
 }
 
 export class ScriptWorker {
@@ -15,7 +17,7 @@ export class ScriptWorker {
     private timeoutTimer?: NodeJS.Timeout
 
     constructor(
-        private readonly options: ScriptWorkerOptions
+        private readonly options: ScriptWorkerOptions,
     ) {
     }
 
@@ -84,6 +86,21 @@ export class ScriptWorker {
                     logger.error('Worker exit', code);
                     settle(() => reject(new Error(`Worker exited with code ${code}`)));
                 }
+            });
+
+            // 接受 worker 发送的消息
+            this.worker.on('message', (message) => {
+                logger.info('Worker message', message);
+                console.log('看顺序 4',this.options);
+                const socket = this.options.sockets.get(this.options.job.gatewayName);
+          
+                // 发射事件
+                socket.emit(EVENTS.REPORT_RESULT, {
+                    payload: {
+                        jobId: this.options.job.id,
+                        result: message,
+                    },
+                });
             });
         });
 

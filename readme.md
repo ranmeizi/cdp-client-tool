@@ -114,6 +114,29 @@ type ReturnMessageType<T = any> = { code: string; payload: T }
 
 脚本执行采用队列（默认容量 10）：请求会立即返回 `executing` / `queued` / `overflow`，实际在队列中顺序执行。脚本入口：`module.exports = async function capture(ctx) { ... }`，类型为 `import('cdp-client-tool').excuteFn`，`ctx` 含 `browser`、`greeting`、`params`（server 下发的可选参数）。资源浏览器中，鼠标悬停任务可查看 params。可通过 `interrupt_script` / `undo_script` 中断运行中或撤销排队中的任务。下发脚本时返回执行 id，网关可据此下发取消任务。
 
+### 客户端上报事件（设备 → 网关）
+
+| 事件 | 说明 | payload |
+|------|------|--------|
+| `report_result` | 脚本执行过程中的结果上报事件，由客户端主动推送给网关，用于异步接收任务结果 | `{ jobId, result }` |
+
+`report_result` 适用于“下发任务先返回 `queued/executing`，最终结果异步回传”的场景。推荐网关侧按 `jobId` 建立等待中的 Action（Promise）并在收到上报后 resolve/reject。
+
+**脚本侧上报示例（worker 内）**
+
+```js
+const { sleep, reportResult } = require("cdp-client-tool");
+
+async function main() {
+  await sleep(1000);
+  reportResult({ stage: "half" }); // 可选：过程上报
+  await sleep(1000);
+  reportResult({ ok: true, data: { price: 123.45 } }); // 最终上报
+}
+
+main().catch((e) => reportResult({ ok: false, error: e?.message || String(e) }));
+```
+
 **示例：exec_local_script**
 
 ```ts
