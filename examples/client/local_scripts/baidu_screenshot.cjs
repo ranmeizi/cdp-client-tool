@@ -2,7 +2,6 @@ const { launchBrowser, sleep, reportResult } = require('cdp-client-tool')
 
 async function main() {
     const browser = await launchBrowser()
-
     // 我要截屏
 
     const page = await browser.newPage()

@@ -47,12 +47,6 @@ export class WsHandler {
                 },
             });
 
-            socket.on("connect", () => {
-                logger.success(`[${gateway.name}]: socketio 连接成功`);
-            });
-            socket.on("disconnect", () => {
-                logger.warn(`[${gateway.name}]: socketio 断开连接`);
-            });
             socket.on("connect_error", (err) => {
                 logger.error(`[${gateway.name}]: connect_error 错误`, err);
             });
@@ -153,7 +147,6 @@ export class WsHandler {
                 gatewayName: gateway.name,
             };
             const result = await this.ctx.runner.execJob(job);
-            console.log('handler:', result);
             callback(this.mapExecResult(result, job.id));
         } catch (e: any) {
             logger.error("exec_local_script 失败", e);

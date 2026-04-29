@@ -51,6 +51,10 @@ export class ScriptWorker {
             });
         }
 
+        const jobId = this.options.job.id;
+        const jobType = this.options.job.type;
+        console.log('[ScriptWorker] start', { jobId, jobType, timeout: this.options.timeout });
+
         return new Promise((resolve, reject) => {
             let settled = false;
             const settle = (fn: () => void) => {
@@ -80,7 +84,6 @@ export class ScriptWorker {
                     this.timeoutTimer = undefined;
                 }
                 if (code === 0) {
-                    logger.success('Worker exit', code);
                     settle(() => resolve());
                 } else {
                     logger.error('Worker exit', code);
@@ -90,17 +93,27 @@ export class ScriptWorker {
 
             // 接受 worker 发送的消息
             this.worker.on('message', (message) => {
-                logger.info('Worker message', message);
-                console.log('看顺序 4',this.options);
                 const socket = this.options.sockets.get(this.options.job.gatewayName);
+                const resultSummary =
+                    message == null
+                        ? 'null'
+                        : Buffer.isBuffer(message)
+                          ? `buffer(len=${message.length})`
+                          : typeof message === 'string'
+                            ? `string(len=${message.length})`
+                            : Array.isArray(message)
+                              ? `array(len=${message.length})`
+                              : typeof message;
           
                 // 发射事件
                 socket.emit(EVENTS.REPORT_RESULT, {
                     payload: {
-                        jobId: this.options.job.id,
+                        jobId,
                         result: message,
                     },
                 });
+
+                console.log('[ScriptWorker] emit report_result', { jobId, resultSummary });
             });
         });
 

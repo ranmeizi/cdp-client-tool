@@ -33,18 +33,15 @@ export class SocketIoDeviceGateway implements DeviceGateway {
         (socket.handshake.auth as { deviceName?: string })?.deviceName ||
         socket.id;
       this.registerDevice(deviceName, socket);
-      console.log('device connected:', deviceName, socket.id);
       for (const listener of this.connectedListeners) {
         listener(deviceName);
       }
 
       socket.on('disconnect', (reason: string) => {
         this.unregisterDevice(socket.id);
-        console.log('device disconnected:', deviceName, reason);
       });
 
       socket.on('report_result', (message: ReportResultMessage) => {
-        console.log('[SocketIoDeviceGateway] report_result', { deviceName, message });
         for (const listener of this.reportResultListeners) {
           listener(deviceName, message);
         }
@@ -193,7 +190,6 @@ export class SocketIoDeviceGateway implements DeviceGateway {
     const ack = await this.emitWithAck<ScriptDispatchAck>(socket, 'exec_local_script', {
       payload,
     });
-    console.log('[SocketIoDeviceGateway] exec_local_script ack', { device, payload, ack });
     return ack;
   }
 

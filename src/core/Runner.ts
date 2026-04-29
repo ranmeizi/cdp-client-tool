@@ -19,6 +19,7 @@ export class Runner {
     private jobIdSeq = 0;
 
     private worker?: ScriptWorker
+    private draining = false;
 
     constructor(
         private readonly client: Client,
@@ -67,6 +68,42 @@ export class Runner {
         };
     }
 
+    private async drainQueue() {
+        if (this.draining) return;
+        this.draining = true;
+        try {
+            while (!this.worker && this.queue.length > 0) {
+                const jobToRun = this.queue.shift()!;
+
+                // 如果上次结束时间小于最小间隔时间，则需要等待
+                if (this.last_finished_at && Date.now() - this.last_finished_at < this.options.minInterval) {
+                    await sleep(this.options.minInterval - (Date.now() - this.last_finished_at));
+                }
+
+                this.worker = new ScriptWorker({
+                    job: jobToRun,
+                    timeout: this.options.timeout,
+                    sockets: this.ctx.ws.sockets
+                });
+
+                try {
+                    await this.worker.run();
+                } catch (e) {
+                    // 执行失败时，任务结果已由 report_result/worker 错误路径体现，这里继续消费后续队列
+                } finally {
+                    this.worker = undefined;
+                    this.last_finished_at = Date.now();
+                }
+            }
+        } finally {
+            this.draining = false;
+            // 防止 finally 到这里时刚好有新任务入队，补一次触发
+            if (!this.worker && this.queue.length > 0) {
+                void this.drainQueue();
+            }
+        }
+    }
+
     public async execJob(job: ScriptJob) {
         if (this.queue.length >= this.options.capacity) {
             // 需处理队列满的情况
@@ -84,51 +121,9 @@ export class Runner {
         }
 
         this.queue.push(job);
-
-        if (!this.worker) {
-            // 开始执行：从队列取出第一个
-            const jobToRun = this.queue.shift()!;
-
-            // 如果上次结束时间小于最小间隔时间，则需要等待
-            if (this.last_finished_at && Date.now() - this.last_finished_at < this.options.minInterval) {
-                console.log('冷却时间');
-                await sleep(this.options.minInterval - (Date.now() - this.last_finished_at));
-            }
-
-            console.log('看顺序 3',this.ctx);
-
-            this.worker = new ScriptWorker({
-                job: jobToRun,
-                timeout: this.options.timeout,
-                sockets: this.ctx.ws.sockets
-            });
-
-            try {
-                const res = await this.worker.run()
-                console.log('res 执行完了', res);
-                // 执行成功
-                return PushJobResult.SUCCESS;
-            } catch (e) {
-                // 执行失败
-                console.log('res 执行失败', e);
-                return PushJobResult.FAILED;
-            } finally {
-                // 清理 runner，若有排队任务则继续执行下一个
-                this.worker = undefined;
-                this.last_finished_at = Date.now();
-
-                console.log('next', this.queue);
-
-                const next = this.queue.shift();
-                if (next) {
-                    console.log('next!', next);
-                    return this.execJob(next);
-                }
-            }
-
-        } else {
-            return PushJobResult.SUCCESS_IN_QUEUE;
-        }
+        const shouldStartNow = !this.worker && !this.draining;
+        void this.drainQueue();
+        return shouldStartNow ? PushJobResult.SUCCESS : PushJobResult.SUCCESS_IN_QUEUE;
     }
 
 }

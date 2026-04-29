@@ -1,6 +1,6 @@
 {
   "name": "@bomon/nestjs-cct-explorer",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "description": "NestJS 模块：封装 CDP client 的设备资源浏览器 HTTP 接口与 /browser 页面",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

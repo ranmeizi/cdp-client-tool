@@ -16,7 +16,9 @@ async function bootstrap() {
   gateway.onDeviceConnected(async (deviceName) => {
     try {
       const result = await bizService.runBaiduScreenshotAction(deviceName);
-      console.log('biz action result:', deviceName, result);
+
+      const result2 = await bizService.runBaiduScreenshotAction(deviceName);
+
     } catch (error) {
       console.error('biz action failed:', deviceName, error);
     }
