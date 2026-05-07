@@ -7,6 +7,8 @@ async function main() {
     const page = await browser.newPage()
     await page.goto('https://www.baidu.com')
     await sleep(5000)
+
+    let i+ 5)
     try {
         await page.screenshot({ path: `screenshots/screenshot_${Date.now()}.png` })
         await page.close()

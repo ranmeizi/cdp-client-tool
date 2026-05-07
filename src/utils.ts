@@ -49,7 +49,10 @@ export async function ensureDir(dirPath: string, create: boolean = true): Promis
   }
 }
 
-/** 报告结果给主进程 */
+/**
+ * 仅在 worker 线程（脚本）内有效：通过 parentPort 把结果交给主进程，再由 ScriptWorker 转发为 `report_result`。
+ * 主进程里 `parentPort` 为空，调用无效；Worker 的 error/exit/timeout 由 ScriptWorker 直接 emit 网关。
+ */
 export function reportResult(result: any) {
   parentPort?.postMessage(result);
 }
